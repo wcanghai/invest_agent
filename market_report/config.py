@@ -11,6 +11,7 @@ REQUIRED_SECTIONS = (
     "industry_etfs",
     "a_share_indices",
     "a_share_markets",
+    "commodity_futures",
     "us_stocks",
     "crypto_pairs",
 )

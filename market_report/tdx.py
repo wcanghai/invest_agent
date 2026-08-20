@@ -75,8 +75,8 @@ def market_breadth(tq: Any, markets: dict[str, str]) -> dict[str, dict[str, floa
     return result
 
 
-def fetch_a_share_data(universe: dict[str, dict[str, str]], caller_file: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], dict[str, dict[str, float | int]]]:
-    """在一个通达信会话中获取全部 A 股数据。"""
+def fetch_a_share_data(universe: dict[str, dict[str, str]], caller_file: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], dict[str, dict[str, float | int]]]:
+    """在一个通达信会话中获取 A 股及配置商品期货数据。"""
     tq = load_tq()
     tq.initialize(str(caller_file))
     try:
@@ -84,6 +84,7 @@ def fetch_a_share_data(universe: dict[str, dict[str, str]], caller_file: Path) -
             latest_daily_rows(tq, universe["a_share_stocks"]),
             latest_daily_rows(tq, universe["industry_etfs"]),
             latest_daily_rows(tq, universe["a_share_indices"]),
+            latest_daily_rows(tq, universe["commodity_futures"]),
             market_breadth(tq, universe["a_share_markets"]),
         )
     finally:

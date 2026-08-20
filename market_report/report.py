@@ -19,15 +19,23 @@ def percent(value: Any) -> str:
     return f"{float(value):+.2f}%{marker}"
 
 
+def percentile(value: Any) -> str:
+    """历史价格分位不是涨跌幅，不附加异常涨跌标记。"""
+    if value is None:
+        return "—"
+    return f"{float(value):.2f}%"
+
+
 def a_share_table(rows: list[dict[str, Any]]) -> str:
-    body = ["| 名称 | 代码 | 收盘 | 涨跌幅 | 开盘 | 最高 | 最低 | 成交额（万元） |", "|---|---|---:|---:|---:|---:|---:|---:|"]
+    body = ["| 名称 | 代码 | 收盘 | 涨跌幅 | 三年价格分位 | 价格位置 | 开盘 | 最高 | 最低 | 成交额（万元） |", "|---|---|---:|---:|---:|---|---:|---:|---:|---:|"]
     for row in rows:
         if "status" in row:
-            body.append(f"| {row['name']} | {row['code']} | {row['status']} | — | — | — | — | — |")
+            body.append(f"| {row['name']} | {row['code']} | {row['status']} | — | — | — | — | — | — | — |")
             continue
         body.append(
             f"| {row['name']} | {row['code']} | {number(row['close'])} | {percent(row['change_pct'])} | "
-            f"{number(row['open'])} | {number(row['high'])} | {number(row['low'])} | {number(row['amount'])} |"
+            f"{percentile(row.get('three_year_percentile'))} | {row.get('price_position', '—')} | {number(row['open'])} | "
+            f"{number(row['high'])} | {number(row['low'])} | {number(row['amount'])} |"
         )
     return "\n".join(body)
 
@@ -35,11 +43,12 @@ def a_share_table(rows: list[dict[str, Any]]) -> str:
 def us_stock_table(rows: list[dict[str, Any]]) -> str:
     if not rows:
         return "暂无可用的美股日线数据。"
-    body = ["| 名称 | 代码 | 交易日 | 收盘（USD） | 涨跌幅 | 开盘 | 最高 | 最低 | 成交量 |", "|---|---|---|---:|---:|---:|---:|---:|---:|"]
+    body = ["| 名称 | 代码 | 交易日 | 收盘（USD） | 涨跌幅 | 三年价格分位 | 价格位置 | 开盘 | 最高 | 最低 | 成交量 |", "|---|---|---|---:|---:|---:|---|---:|---:|---:|---:|"]
     for row in rows:
         body.append(
             f"| {row['name']} | {row['code']} | {row['date']} | {number(row['close'])} | {percent(row['change_pct'])} | "
-            f"{number(row['open'])} | {number(row['high'])} | {number(row['low'])} | {row['volume']:,} |"
+            f"{percentile(row.get('three_year_percentile'))} | {row.get('price_position', '—')} | {number(row['open'])} | "
+            f"{number(row['high'])} | {number(row['low'])} | {row['volume']:,} |"
         )
     return "\n".join(body)
 
@@ -47,15 +56,34 @@ def us_stock_table(rows: list[dict[str, Any]]) -> str:
 def crypto_table(rows: list[dict[str, Any]]) -> str:
     if not rows:
         return "暂无可用的虚拟货币报价。"
-    body = ["| 资产 | 交易对 | 最新价（USD） | 24h 变动 | 24h 成交量（币） | 数据源 |", "|---|---|---:|---:|---:|---|"]
+    body = ["| 资产 | 交易对 | 最新价（USD） | 24h 变动 | 三年价格分位 | 价格位置 | 24h 成交量（币） | 数据源 |", "|---|---|---:|---:|---:|---|---:|---|"]
     for row in rows:
-        body.append(f"| {row['name']} | {row['code']} | {number(row['close'])} | {percent(row['change_pct'])} | {number(row['volume'])} | Kraken |")
+        body.append(
+            f"| {row['name']} | {row['code']} | {number(row['close'])} | {percent(row['change_pct'])} | "
+            f"{percentile(row.get('three_year_percentile'))} | {row.get('price_position', '—')} | {number(row['volume'])} | Kraken |"
+        )
+    return "\n".join(body)
+
+
+def futures_table(rows: list[dict[str, Any]]) -> str:
+    if not rows:
+        return "暂无可用的商品期货日线数据。"
+    body = ["| 合约 | 代码 | 收盘（合约报价） | 涨跌幅 | 三年价格分位 | 价格位置 | 开盘 | 最高 | 最低 | 成交额（万元） |", "|---|---|---:|---:|---:|---|---:|---:|---:|---:|"]
+    for row in rows:
+        if "status" in row:
+            body.append(f"| {row['name']} | {row['code']} | {row['status']} | — | — | — | — | — | — | — |")
+            continue
+        body.append(
+            f"| {row['name']} | {row['code']} | {number(row['close'])} | {percent(row['change_pct'])} | "
+            f"{percentile(row.get('three_year_percentile'))} | {row.get('price_position', '—')} | {number(row['open'])} | "
+            f"{number(row['high'])} | {number(row['low'])} | {number(row['amount'])} |"
+        )
     return "\n".join(body)
 
 
 def render(
     stock_rows: list[dict[str, Any]], etf_rows: list[dict[str, Any]], index_rows: list[dict[str, Any]],
-    breadth: dict[str, dict[str, float | int]], us_rows: list[dict[str, Any]], crypto_rows: list[dict[str, Any]],
+    breadth: dict[str, dict[str, float | int]], futures_rows: list[dict[str, Any]], us_rows: list[dict[str, Any]], crypto_rows: list[dict[str, Any]],
     warnings: list[str], generated_at: datetime,
 ) -> str:
     dated_rows = [row for row in stock_rows + etf_rows + index_rows if "date" in row]
@@ -96,11 +124,15 @@ def render(
 |---|---:|---:|---:|---:|
 {breadth_rows}
 
-## 5. 配置的美股（最近一个美股交易日）
+## 5. 重要商品期货
+
+{futures_table(futures_rows)}
+
+## 6. 配置的美股（最近一个美股交易日）
 
 {us_stock_table(us_rows)}
 
-## 6. 配置的虚拟货币（实时交易所报价）
+## 7. 配置的虚拟货币（实时交易所报价）
 
 {crypto_table(crypto_rows)}
 
@@ -110,6 +142,8 @@ def render(
 - 三市成交额为市场快照的成交金额汇总，**不等于资金净流入**；上涨/下跌家数在盘中会继续变化。
 - 美股日线来自 Alpha Vantage，币种为美元，交易日可能与 A 股日期不同。
 - 虚拟货币来自 Kraken USD 交易对；24h 变动按该交易所返回的开盘价计算，价格会持续变化。
+- 三年价格分位 = 最近三年缓存日线中，收盘价不高于当前价的比例；≤20% 标为“价格偏低”，≥80% 标为“价格偏高”，其余为“价格中性”。它反映价格历史位置，**不等同于 PE/PB 等基本面估值**。
+- 商品期货采用配置中的具体合约，合约到期换月后需在配置中更新代码；若单一合约历史不足三年，不计算三年价格分位。
 """
     if warnings:
         report += "\n## 外部接口状态\n\n" + "\n".join(f"- {warning}" for warning in warnings) + "\n"
