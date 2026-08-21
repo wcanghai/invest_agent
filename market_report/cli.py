@@ -6,11 +6,7 @@ import argparse
 from datetime import datetime
 from pathlib import Path
 
-from market_report.config import load_universe
-from market_report.external import fetch_crypto_quotes, fetch_us_daily
-from market_report.history import attach_price_positions, merge_latest_rows
-from market_report.report import render
-from market_report.tdx import fetch_a_share_data
+from market_report.service import generate_market_report
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -40,32 +36,17 @@ def parse_arguments() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_arguments()
-    universe = load_universe(args.config.resolve())
     generated_at = datetime.now()
     default_output = PROJECT_ROOT / "reports" / f"market_report_{generated_at:%Y-%m-%d}.md"
     output = (args.output or default_output).resolve()
-    history_root = args.history_dir.resolve()
-
-    stock_rows, etf_rows, index_rows, futures_rows, breadth = fetch_a_share_data(universe, Path(__file__).resolve())
-    us_rows, us_warnings = fetch_us_daily(universe["us_stocks"])
-    crypto_rows, crypto_warnings = fetch_crypto_quotes(universe["crypto_pairs"])
-    fallback_date = generated_at.strftime("%Y-%m-%d")
-    for category, rows in [
-        ("a_share_stocks", stock_rows),
-        ("industry_etfs", etf_rows),
-        ("a_share_indices", index_rows),
-        ("commodity_futures", futures_rows),
-        ("us_stocks", us_rows),
-        ("crypto_pairs", crypto_rows),
-    ]:
-        merge_latest_rows(rows, history_root, category, fallback_date)
-        attach_price_positions(rows, history_root, category)
-    report = render(
-        stock_rows, etf_rows, index_rows, breadth, futures_rows, us_rows, crypto_rows,
-        us_warnings + crypto_warnings, generated_at,
+    snapshot = generate_market_report(
+        args.config,
+        args.history_dir,
+        Path(__file__).resolve(),
+        generated_at,
     )
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(report, encoding="utf-8")
+    output.write_text(snapshot.markdown, encoding="utf-8")
     print(f"报告已生成：{output}")
 
 

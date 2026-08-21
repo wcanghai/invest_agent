@@ -10,6 +10,7 @@
 ├─ docs/                   # 专题文档
 ├─ finance_news/           # 新浪/东方财富新闻采集与标准化
 ├─ market_report/          # 行情数据源、历史缓存、报告渲染及命令入口
+├─ market_web/             # 每日首次生成、SQLite 归档和浏览器页面/API
 ├─ tdx_history/            # 通达信历史数据配置、存储、同步服务及命令入口
 ├─ tests/                  # 核心业务单元测试
 ├─ .gitignore              # 缓存、运行结果和本地配置忽略规则
@@ -73,7 +74,31 @@ tdx-history
 该命令首次回补、后续增量追加到 SQLite。配置和数据结构详见
 [通达信历史同步说明](docs/tdx-history.md)。
 
-### 4. 获取财经新闻
+### 4. 启动日报网站
+
+```powershell
+market-web
+# 或：python -m market_web
+```
+
+浏览器打开 <http://127.0.0.1:8000>。网站按本机自然日工作：当天第一次访问
+首页或 `/api/reports/today` 时采集行情并计算报告，成功后写入
+`data/market_reports.sqlite3`；同一天后续访问直接读取该记录。服务重启后记录仍然
+存在，历史报告可从页面左侧归档或 `/api/reports` 查看。
+
+常用接口：
+
+- `/`：今日报告网页；
+- `/reports/YYYY-MM-DD`：已归档的历史报告；
+- `/api/reports/today`：今日完整 JSON；
+- `/api/reports`：归档索引；
+- `/health`：服务及数据库健康状态。
+
+使用 `python -m market_web --help` 可调整监听地址、端口、数据库和行情配置路径。
+默认只监听 `127.0.0.1`，且保持单进程运行，以保证本地通达信插件访问与每日首次
+生成逻辑一致。
+
+### 5. 获取财经新闻
 
 ```powershell
 finance-news

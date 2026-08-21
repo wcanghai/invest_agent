@@ -11,11 +11,17 @@ requires-python = ">=3.11"
 license = "MIT"
 dependencies = [
     "akshare>=1.17",
+    "bleach>=6.2",
+    "fastapi>=0.116",
+    "jinja2>=3.1",
+    "markdown>=3.8",
     "pandas>=2.2",
+    "uvicorn>=0.35",
 ]
 
 [project.optional-dependencies]
 dev = [
+    "httpx>=0.28",
     "pytest>=8",
 ]
 
@@ -24,9 +30,13 @@ market-report = "market_report.cli:main"
 market-cache = "market_report.cache_cli:main"
 finance-news = "finance_news.cli:main"
 tdx-history = "tdx_history.cli:main"
+market-web = "market_web.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["finance_news*", "market_report*", "tdx_history*"]
+include = ["finance_news*", "market_report*", "market_web*", "tdx_history*"]
+
+[tool.setuptools.package-data]
+market_web = ["templates/*.html", "static/*.css"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

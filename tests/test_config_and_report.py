@@ -5,7 +5,7 @@ import pandas as pd
 
 from market_report.config import load_universe
 from market_report.history import attach_price_positions, save_history
-from market_report.report import render
+from market_report.report import eastmoney_quote_url, render
 
 
 def test_default_config_includes_midea_and_moutai() -> None:
@@ -30,6 +30,17 @@ def test_render_includes_configurable_sections() -> None:
     assert "美的集团" in report
     assert "## 5. 重要商品期货" in report
     assert "## 6. 配置的美股" in report
+    assert "[查看](https://quote.eastmoney.com/sz000333.html)" in report
+    assert "[查看](https://quote.eastmoney.com/zs000001.html)" in report
+    assert "[查看](https://quote.eastmoney.com/q/0.899050.html)" in report
+
+
+def test_eastmoney_quote_urls_cover_stocks_etfs_and_indices() -> None:
+    assert eastmoney_quote_url("000333.SZ") == "https://quote.eastmoney.com/sz000333.html"
+    assert eastmoney_quote_url("600519.SH") == "https://quote.eastmoney.com/sh600519.html"
+    assert eastmoney_quote_url("512880.SH") == "https://quote.eastmoney.com/sh512880.html"
+    assert eastmoney_quote_url("399006.SZ", index=True) == "https://quote.eastmoney.com/zs399006.html"
+    assert eastmoney_quote_url("932000.CSI", index=True) == "https://quote.eastmoney.com/zz/2.932000.html"
 
 
 def test_three_year_price_position_uses_cached_closes(tmp_path: Path) -> None:

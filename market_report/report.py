@@ -6,6 +6,33 @@ from datetime import datetime
 from typing import Any
 
 
+MARKET_INDEX_CODES = {
+    "沪市": "000001.SH",
+    "深市": "399001.SZ",
+    "北交所": "899050.BJ",
+}
+
+
+def eastmoney_quote_url(code: str, *, index: bool = False) -> str:
+    """根据证券代码生成东方财富行情页地址。"""
+    symbol, _, exchange = code.upper().partition(".")
+    if index:
+        if code.upper() == "932000.CSI":
+            return "https://quote.eastmoney.com/zz/2.932000.html"
+        if code.upper() == "899050.BJ":
+            return "https://quote.eastmoney.com/q/0.899050.html"
+        return f"https://quote.eastmoney.com/zs{symbol}.html"
+
+    prefixes = {"SH": "sh", "SZ": "sz", "BJ": "bj"}
+    if exchange not in prefixes:
+        raise ValueError(f"不支持生成东方财富链接的证券代码：{code}")
+    return f"https://quote.eastmoney.com/{prefixes[exchange]}{symbol}.html"
+
+
+def eastmoney_link(code: str, *, index: bool = False) -> str:
+    return f"[查看]({eastmoney_quote_url(code, index=index)})"
+
+
 def number(value: Any, decimals: int = 2) -> str:
     if value is None:
         return "—"
@@ -26,16 +53,17 @@ def percentile(value: Any) -> str:
     return f"{float(value):.2f}%"
 
 
-def a_share_table(rows: list[dict[str, Any]]) -> str:
-    body = ["| 名称 | 代码 | 收盘 | 涨跌幅 | 三年价格分位 | 价格位置 | 开盘 | 最高 | 最低 | 成交额（万元） |", "|---|---|---:|---:|---:|---|---:|---:|---:|---:|"]
+def a_share_table(rows: list[dict[str, Any]], *, index: bool = False) -> str:
+    body = ["| 名称 | 代码 | 收盘 | 涨跌幅 | 三年价格分位 | 价格位置 | 开盘 | 最高 | 最低 | 成交额（万元） | 东方财富 |", "|---|---|---:|---:|---:|---|---:|---:|---:|---:|---|"]
     for row in rows:
+        quote_link = eastmoney_link(row["code"], index=index)
         if "status" in row:
-            body.append(f"| {row['name']} | {row['code']} | {row['status']} | — | — | — | — | — | — | — |")
+            body.append(f"| {row['name']} | {row['code']} | {row['status']} | — | — | — | — | — | — | — | {quote_link} |")
             continue
         body.append(
             f"| {row['name']} | {row['code']} | {number(row['close'])} | {percent(row['change_pct'])} | "
             f"{percentile(row.get('three_year_percentile'))} | {row.get('price_position', '—')} | {number(row['open'])} | "
-            f"{number(row['high'])} | {number(row['low'])} | {number(row['amount'])} |"
+            f"{number(row['high'])} | {number(row['low'])} | {number(row['amount'])} | {quote_link} |"
         )
     return "\n".join(body)
 
@@ -90,7 +118,9 @@ def render(
     report_date = max(row["date"] for row in dated_rows) if dated_rows else generated_at.strftime("%Y-%m-%d")
     total = breadth["三市合计"]
     breadth_rows = "\n".join(
-        f"| {name} | {number(breadth[name]['amount'])} | {number(breadth[name]['amount'] / 10_000)} | {breadth[name]['up']:,} | {breadth[name]['down']:,} |"
+        f"| {name} | {number(breadth[name]['amount'])} | {number(breadth[name]['amount'] / 10_000)} | "
+        f"{breadth[name]['up']:,} | {breadth[name]['down']:,} | "
+        f"{eastmoney_link(MARKET_INDEX_CODES[name], index=True) if name in MARKET_INDEX_CODES else '—'} |"
         for name in [*list(breadth.keys())[:-1], "三市合计"]
     )
     report = f"""# 每日行情报告（A 股 / 美股 / 虚拟货币）
@@ -116,12 +146,12 @@ def render(
 
 ## 3. 主要 A 股指数
 
-{a_share_table(index_rows)}
+{a_share_table(index_rows, index=True)}
 
 ## 4. 沪深北三市市场宽度
 
-| 市场 | 成交额（万元） | 成交额（亿元） | 上涨家数 | 下跌家数 |
-|---|---:|---:|---:|---:|
+| 市场 | 成交额（万元） | 成交额（亿元） | 上涨家数 | 下跌家数 | 东方财富 |
+|---|---:|---:|---:|---:|---|
 {breadth_rows}
 
 ## 5. 重要商品期货
@@ -139,6 +169,7 @@ def render(
 ## 数据口径与提示
 
 - A 股价格、ETF、指数与市场宽度均来自通达信本地 `tqcenter` 接口；成交额单位为万元。
+- A 股股票、ETF、指数与市场宽度表中的“东方财富”链接指向对应的公开行情页面。
 - 三市成交额为市场快照的成交金额汇总，**不等于资金净流入**；上涨/下跌家数在盘中会继续变化。
 - 美股日线来自 Alpha Vantage，币种为美元，交易日可能与 A 股日期不同。
 - 虚拟货币来自 Kraken USD 交易对；24h 变动按该交易所返回的开盘价计算，价格会持续变化。
