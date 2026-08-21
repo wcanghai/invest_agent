@@ -2,7 +2,7 @@ from datetime import date
 
 import pandas as pd
 
-from get_finance_news import (
+from finance_news.service import (
     fetch_sources,
     normalize_eastmoney,
     normalize_sina,
