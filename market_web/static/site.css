@@ -66,16 +66,16 @@ a { color: inherit; }
 .markdown-report td a { color: var(--green); font-weight: 600; }
 .markdown-report ul { padding-left: 20px; color: var(--muted); }
 .markdown-report li { margin: 8px 0; }
-.table-sort-controls { display: flex; flex-wrap: wrap; gap: 7px; margin: 0 0 10px; }
-.table-sort-controls button { padding: 6px 11px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--muted); cursor: pointer; font: inherit; font-size: 12px; }
-.table-sort-controls button:hover { border-color: var(--green); color: var(--green); }
-.table-sort-controls button[aria-pressed="true"] { border-color: var(--green); background: var(--green); color: white; }
-.markdown-report td[class*="signal-"] { position: relative; font-weight: 700; }
-.markdown-report td.signal-up { background: #fff0ed; color: var(--red); box-shadow: inset 3px 0 var(--red); }
-.markdown-report td.signal-down { background: #edf7f1; color: var(--green); box-shadow: inset 3px 0 var(--green); }
-.markdown-report td.signal-high { background: #fff4df; color: #9a5b00; box-shadow: inset 3px 0 #d88a12; }
-.markdown-report td.signal-low { background: #eaf3fb; color: #24658f; box-shadow: inset 3px 0 #4385b2; }
-.signal-marker { display: inline-block; margin-left: 6px; padding: 2px 5px; border: 1px solid currentColor; border-radius: 999px; font-size: 10px; font-weight: 600; line-height: 1; vertical-align: 1px; }
+.markdown-report th.sortable-column { padding-right: 5px; }
+.sort-toggle { width: 21px; height: 21px; margin-left: 4px; padding: 0; border: 1px solid transparent; border-radius: 50%; background: transparent; color: #7d8982; cursor: pointer; font: 700 13px/1 "Segoe UI Symbol", sans-serif; vertical-align: -2px; transition: background-color .16s ease, border-color .16s ease, color .16s ease, transform .16s ease; }
+.sort-toggle:hover { border-color: rgba(15, 107, 79, .28); background: rgba(15, 107, 79, .09); color: var(--green); transform: translateY(-1px); }
+.sort-toggle:focus-visible { outline: 2px solid rgba(15, 107, 79, .45); outline-offset: 2px; }
+.sort-toggle:not([data-sort-direction="default"]) { border-color: rgba(15, 107, 79, .2); background: var(--green-soft); color: var(--green); }
+.markdown-report td[class*="signal-"] { font-weight: 700; font-variant-numeric: tabular-nums; transition: background-color .16s ease, box-shadow .16s ease; }
+.markdown-report td.signal-up { background: linear-gradient(90deg, rgba(177, 61, 51, .13), rgba(177, 61, 51, .035)); color: var(--red); box-shadow: inset 0 -2px rgba(177, 61, 51, .52); }
+.markdown-report td.signal-down { background: linear-gradient(90deg, rgba(15, 107, 79, .13), rgba(15, 107, 79, .035)); color: var(--green); box-shadow: inset 0 -2px rgba(15, 107, 79, .48); }
+.markdown-report td.signal-high { background: linear-gradient(90deg, rgba(216, 138, 18, .14), rgba(216, 138, 18, .035)); color: #925b07; box-shadow: inset 0 -2px rgba(216, 138, 18, .52); }
+.markdown-report td.signal-low { background: linear-gradient(90deg, rgba(67, 133, 178, .14), rgba(67, 133, 178, .035)); color: #24658f; box-shadow: inset 0 -2px rgba(67, 133, 178, .5); }
 
 .error-shell { width: min(720px, calc(100% - 36px)); margin: 10vh auto; padding: clamp(24px, 6vw, 56px); background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }
 .error-shell h1 { font-family: Georgia, "Microsoft YaHei", serif; font-weight: 500; }

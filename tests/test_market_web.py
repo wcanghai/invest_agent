@@ -96,11 +96,17 @@ def test_web_pages_and_api_use_the_same_persisted_report(tmp_path):
         assert client.get("/static/site.css").status_code == 200
         script = client.get("/static/report-tables.js")
         assert script.status_code == 200
-        assert "默认排序" in script.text
+        assert 'className = "sort-toggle"' in script.text
+        assert 'icon: "↕"' in script.text
+        assert 'icon: "↓"' in script.text
+        assert 'icon: "↑"' in script.text
         assert "涨幅优先" in script.text
         assert "跌幅优先" in script.text
         assert "change > 3" in script.text
         assert "percentile > 80" in script.text
+        assert "signal-marker" not in script.text
+        assert "强势" not in script.text
+        assert "高位" not in script.text
 
         today_api = client.get("/api/reports/today")
         assert today_api.status_code == 200
