@@ -30,6 +30,7 @@ market-report = "market_report.cli:main"
 market-cache = "market_report.cache_cli:main"
 finance-news = "finance_news.cli:main"
 tdx-history = "tdx_history.cli:main"
+tdx-history-config = "tdx_history.config_builder:main"
 market-web = "market_web.cli:main"
 
 [tool.setuptools.packages.find]

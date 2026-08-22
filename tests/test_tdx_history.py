@@ -8,6 +8,7 @@ import pandas as pd
 
 from tdx_history.config import Instrument, SyncConfig, UniverseSpec, load_config
 from tdx_history.cli import _completed_through
+from tdx_history.config_builder import IndexSpec, build_target_payload, write_target_config
 from tdx_history.repository import HistoryRepository
 from tdx_history.service import HistorySyncService
 from tdx_history.tdx_source import TdxDailySource
@@ -159,6 +160,85 @@ class TdxHistoryTests(unittest.TestCase):
             list(frame.columns),
             ["trade_date", "open", "high", "low", "close", "volume", "amount"],
         )
+
+    def test_tdx_source_calculates_positive_average_amounts_in_chunks(self) -> None:
+        class FakeTq:
+            def initialize(self, _: str) -> None:
+                pass
+
+            def close(self) -> None:
+                pass
+
+            def get_market_data(self, **values: object) -> dict[str, pd.DataFrame]:
+                codes = values["stock_list"]
+                assert isinstance(codes, list)
+                return {
+                    "Amount": pd.DataFrame(
+                        {code: [0, 100, 300] if code == "510300.SH" else [50, None, 150] for code in codes}
+                    )
+                }
+
+        with TdxDailySource(self.root, self.root / "caller.py", tq=FakeTq()) as source:
+            result = source.average_amounts(
+                ["510300.SH", "510500.SH"],
+                date(2026, 8, 1),
+                date(2026, 8, 21),
+                chunk_size=1,
+            )
+        self.assertEqual(result, {"510300.SH": 200.0, "510500.SH": 100.0})
+
+    def test_target_config_is_explicit_ranked_and_loadable(self) -> None:
+        groups = {
+            "23": (
+                Instrument("000001.SZ", "平安银行", "stock"),
+                Instrument("600000.SH", "浦发银行", "stock"),
+            ),
+            "24": (
+                Instrument("000009.SZ", "中国宝安", "stock"),
+                Instrument("600004.SH", "白云机场", "stock"),
+            ),
+            "31": tuple(
+                Instrument(f"{510000 + index:06d}.SH", f"ETF{index}", "etf")
+                for index in range(105)
+            ),
+        }
+
+        class FakeTargetSource:
+            def list_instruments(self, universe: UniverseSpec) -> tuple[Instrument, ...]:
+                return groups[universe.market]
+
+            def average_amounts(
+                self,
+                codes: list[str],
+                start: date,
+                end: date,
+                chunk_size: int = 100,
+            ) -> dict[str, float]:
+                self.window = (start, end, chunk_size)
+                return {code: float(index + 1) for index, code in enumerate(codes)}
+
+        source = FakeTargetSource()
+        payload = build_target_payload(
+            source,
+            Path("D:/tdx"),
+            date(2026, 8, 21),
+            etf_count=100,
+            lookback_days=60,
+            chunk_size=25,
+            index_specs=(IndexSpec("hs300", "23", 2), IndexSpec("csi500", "24", 2)),
+        )
+        self.assertEqual(len(payload["instruments"]), 104)
+        selection = payload["selection"]
+        self.assertIsInstance(selection, dict)
+        ranking = selection["etf_ranking"]
+        self.assertEqual(ranking["codes"][0], "510104.SH")
+        self.assertEqual(source.window, (date(2026, 6, 23), date(2026, 8, 21), 25))
+
+        path = self.root / "target.json"
+        write_target_config(path, payload)
+        loaded = load_config(path)
+        self.assertEqual(len(loaded.instruments), 104)
+        self.assertEqual(loaded.universes, ())
 
     def test_discovery_deduplicates_and_limits_each_kind(self) -> None:
         manual = Instrument("600000.SH", "手工名称", "stock")

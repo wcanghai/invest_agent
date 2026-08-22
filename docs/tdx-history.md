@@ -68,6 +68,24 @@ tdx-history --include-today
 tdx-history --config .\config\tdx_history.json --database .\data\my_history.sqlite3
 ```
 
+## 沪深300、中证500与主流 ETF 快照
+
+生成当前指数成分和按最近 60 个自然日日均成交额排名的前 120 只 ETF：
+
+```powershell
+tdx-history-config --output .\config\tdx_index_etf_history.json
+# 或：python -m tdx_history.config_builder --output .\config\tdx_index_etf_history.json
+```
+
+生成文件包含 300 只沪深300成分、500 只中证500成分和 120 只 ETF 的显式代码。同步时不会再次动态改变样本：
+
+```powershell
+tdx-history --config .\config\tdx_index_etf_history.json --all `
+  --database .\data\tdx_index_etf_history.sqlite3
+```
+
+指数成分是配置生成日的当前快照；把当前成分回补十年不等于历史每期真实成分，研究时需注意幸存者偏差。SQLite、WAL 和 SHM 文件只保留本地，不应提交或上传。
+
 ## 查询示例
 
 ```sql

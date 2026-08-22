@@ -75,6 +75,9 @@ tdx-history
 才同步通达信中的所有 A 股和 ETF。首次回补、后续增量追加到 SQLite。配置和数据结构详见
 [通达信历史同步说明](docs/tdx-history.md)。
 
+需要固定沪深300、中证500和高流动性 ETF 研究样本时，先运行
+`tdx-history-config` 生成显式代码配置，再把该配置交给 `tdx-history --all`。
+
 ### 4. 启动日报网站
 
 ```powershell

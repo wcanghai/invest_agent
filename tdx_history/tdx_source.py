@@ -5,7 +5,7 @@ from __future__ import annotations
 import sys
 from datetime import date
 from pathlib import Path
-from typing import Any
+from typing import Any, Sequence
 
 import pandas as pd
 
@@ -122,6 +122,47 @@ class TdxDailySource:
                 _series(payload[source_name], code).reindex(close.index), errors="coerce"
             ).to_numpy()
         return result.reset_index(drop=True)
+
+    def average_amounts(
+        self,
+        codes: Sequence[str],
+        start: date,
+        end: date,
+        chunk_size: int = 100,
+    ) -> dict[str, float]:
+        """分批计算指定区间内有成交 ETF 的日均成交额。"""
+        if not self._connected:
+            raise RuntimeError("通达信数据源尚未连接。")
+        if chunk_size <= 0:
+            raise ValueError("chunk_size 必须大于 0。")
+
+        averages: dict[str, float] = {}
+        normalized = tuple(dict.fromkeys(code.strip().upper() for code in codes if code.strip()))
+        for offset in range(0, len(normalized), chunk_size):
+            chunk = normalized[offset : offset + chunk_size]
+            payload = self.tq.get_market_data(
+                field_list=["Amount"],
+                stock_list=list(chunk),
+                start_time=start.strftime("%Y%m%d"),
+                end_time=end.strftime("%Y%m%d"),
+                count=-1,
+                dividend_type="none",
+                period="1d",
+                fill_data=False,
+            )
+            if not payload:
+                continue
+            if "Amount" not in payload or not isinstance(payload["Amount"], pd.DataFrame):
+                raise RuntimeError("通达信未返回可识别的 ETF 成交额数据。")
+            amount_frame = payload["Amount"]
+            for code in chunk:
+                if code not in amount_frame.columns:
+                    continue
+                values = pd.to_numeric(amount_frame[code], errors="coerce")
+                positive = values[values > 0].dropna()
+                if not positive.empty:
+                    averages[code] = float(positive.mean())
+        return averages
 
 
 def _series(frame: pd.DataFrame, code: str) -> pd.Series:
