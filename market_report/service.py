@@ -11,6 +11,7 @@ from typing import Any
 from market_report.config import load_universe
 from market_report.external import fetch_crypto_quotes, fetch_us_daily
 from market_report.history import attach_price_positions, merge_latest_rows
+from market_report.offerings import collect_offerings
 from market_report.report import render
 from market_report.tdx import fetch_a_share_data
 
@@ -51,6 +52,7 @@ def generate_market_report(
     )
     us_rows, us_warnings = fetch_us_daily(universe["us_stocks"])
     crypto_rows, crypto_warnings = fetch_crypto_quotes(universe["crypto_pairs"])
+    offering_rows, offering_warnings = collect_offerings(caller_file, generated_at.date())
     fallback_date = generated_at.strftime("%Y-%m-%d")
     categorized_rows = [
         ("a_share_stocks", stock_rows),
@@ -64,7 +66,7 @@ def generate_market_report(
         merge_latest_rows(rows, history_root, category, fallback_date)
         attach_price_positions(rows, history_root, category)
 
-    warnings = us_warnings + crypto_warnings
+    warnings = us_warnings + crypto_warnings + offering_warnings
     markdown = render(
         stock_rows,
         etf_rows,
@@ -73,6 +75,7 @@ def generate_market_report(
         futures_rows,
         us_rows,
         crypto_rows,
+        offering_rows,
         warnings,
         generated_at,
     )
@@ -90,6 +93,7 @@ def generate_market_report(
         "commodity_futures": futures_rows,
         "us_stocks": us_rows,
         "crypto_pairs": crypto_rows,
+        "ipo_calendar": offering_rows,
         "warnings": warnings,
     }
     return MarketReportSnapshot(source_date, generated_at, markdown, _json_safe(data))

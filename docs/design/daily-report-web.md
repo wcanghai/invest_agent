@@ -43,6 +43,7 @@ Browser -> FastAPI routes -> DailyReportService -> SQLite repository
 - `GET /reports/{YYYY-MM-DD}`：只读历史报告。
 - `GET /api/reports`：日期和生成时间列表。
 - `GET /api/reports/{YYYY-MM-DD|today}`：完整 JSON。
+- `GET /api/offerings/{YYYY-MM-DD|today}`：从已持久化日报读取新股、新债事件。
 - `GET /health`：`{"status": "ok"}`。
 
 ## Security And Permissions
@@ -69,6 +70,7 @@ Browser -> FastAPI routes -> DailyReportService -> SQLite repository
 
 - 使用伪生成器验证首次调用、缓存命中、进程重建和失败不入库。
 - 使用 FastAPI TestClient 验证 HTML、API、404 和健康检查。
+- 验证发行事件摘要卡、今日/历史发行日历 API 与日报快照一致。
 - 用现有真实数据源启动本地服务，检查首页响应。
 
 Ready for implementation.

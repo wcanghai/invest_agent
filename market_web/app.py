@@ -122,6 +122,22 @@ def create_app(
             raise HTTPException(status_code=404, detail="该日期没有已保存的日报。")
         return record.to_dict()
 
+    @app.get("/api/offerings/today")
+    def today_offerings_api() -> dict[str, Any]:
+        """从今日已持久化日报读取新股、新债事件。"""
+        try:
+            return _offering_payload(report_service.get_or_create_today())
+        except Exception as error:
+            raise HTTPException(status_code=503, detail=str(error)) from error
+
+    @app.get("/api/offerings/{report_date}")
+    def historical_offerings_api(report_date: date) -> dict[str, Any]:
+        """读取指定历史日报中的新股、新债事件，不触发补采。"""
+        record = report_service.get(report_date)
+        if record is None:
+            raise HTTPException(status_code=404, detail="该日期没有已保存的日报。")
+        return _offering_payload(record)
+
     @app.get("/health")
     def health() -> dict[str, Any]:
         repository.check()
@@ -138,6 +154,7 @@ def _report_response(
 ) -> HTMLResponse:
     breadth = record.snapshot.get("data", {}).get("market_breadth", {})
     total = breadth.get("三市合计", {})
+    offerings = _offering_items(record)
     return templates.TemplateResponse(
         request,
         "report.html",
@@ -149,8 +166,29 @@ def _report_response(
             "total_amount": _format_amount(total.get("amount")),
             "up_count": total.get("up", "—"),
             "down_count": total.get("down", "—"),
+            "offering_count": len(offerings),
+            "today_subscription_count": sum(
+                "今日申购" in str(item.get("event_status", "")) for item in offerings
+            ),
         },
     )
+
+
+def _offering_payload(record: DailyReportRecord) -> dict[str, Any]:
+    items = _offering_items(record)
+    return {
+        "report_date": record.report_date.isoformat(),
+        "generated_at": record.generated_at.isoformat(timespec="seconds"),
+        "count": len(items),
+        "items": items,
+    }
+
+
+def _offering_items(record: DailyReportRecord) -> list[dict[str, Any]]:
+    value = record.snapshot.get("data", {}).get("ipo_calendar", [])
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, dict)]
 
 
 def _markdown_html(value: str) -> Markup:

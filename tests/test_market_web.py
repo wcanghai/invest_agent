@@ -21,13 +21,24 @@ def _snapshot(generated_at: datetime) -> MarketReportSnapshot:
             "|---|---:|---:|\n"
             "| 美的集团 | +4.20% | 85.00% |\n"
             "| 贵州茅台 | -3.50% | 10.00% |\n\n"
+            "## 8. 新股新债日历\n\n"
+            "| 状态 | 类型 | 名称 |\n|---|---|---|\n"
+            "| 今日申购 | 新股 | 测试股份 |\n\n"
             "[东方财富](https://quote.eastmoney.com/sz000333.html)"
             "<script>alert('unsafe')</script>"
         ),
         data={
             "market_breadth": {
                 "三市合计": {"amount": 12_345_600, "up": 3210, "down": 1760}
-            }
+            },
+            "ipo_calendar": [
+                {
+                    "kind": "新股",
+                    "name": "测试股份",
+                    "subscription_code": "732999",
+                    "event_status": "今日申购",
+                }
+            ],
         },
     )
 
@@ -72,6 +83,25 @@ def test_failed_generation_is_not_persisted(tmp_path):
     assert repository.count() == 0
 
 
+def test_offerings_api_can_be_the_first_daily_request(tmp_path):
+    calls: list[datetime] = []
+
+    def generator(generated_at: datetime) -> MarketReportSnapshot:
+        calls.append(generated_at)
+        return _snapshot(generated_at)
+
+    app = create_app(database_path=tmp_path / "reports.sqlite3", generator=generator)
+    with TestClient(app) as client:
+        first = client.get("/api/offerings/today")
+        second = client.get("/api/offerings/today")
+
+        assert first.status_code == 200
+        assert first.json()["count"] == 1
+        assert second.json() == first.json()
+        assert len(calls) == 1
+        assert client.get("/health").json()["stored_reports"] == 1
+
+
 def test_web_pages_and_api_use_the_same_persisted_report(tmp_path):
     calls: list[datetime] = []
 
@@ -89,6 +119,9 @@ def test_web_pages_and_api_use_the_same_persisted_report(tmp_path):
         assert page.status_code == 200
         assert "测试市场日报" in page.text
         assert "美的集团" in page.text
+        assert "新股新债事件" in page.text
+        assert "今日可申购" in page.text
+        assert "测试股份" in page.text
         assert "https://quote.eastmoney.com/sz000333.html" in page.text
         assert 'target="_blank"' in page.text
         assert 'rel="noopener noreferrer"' in page.text
@@ -120,4 +153,10 @@ def test_web_pages_and_api_use_the_same_persisted_report(tmp_path):
         assert index["reports"][0]["report_date"] == today
         assert client.get(f"/reports/{today}").status_code == 200
         assert client.get(f"/api/reports/{today}").status_code == 200
+        offerings = client.get("/api/offerings/today")
+        assert offerings.status_code == 200
+        assert offerings.json()["count"] == 1
+        assert offerings.json()["items"][0]["subscription_code"] == "732999"
+        assert client.get(f"/api/offerings/{today}").json()["count"] == 1
+        assert client.get("/api/offerings/2000-01-01").status_code == 404
         assert client.get("/api/reports/2000-01-01").status_code == 404

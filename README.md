@@ -1,6 +1,6 @@
 # 多市场投资数据工具
 
-一个模块化的 Python 项目，提供多市场行情日报、历史行情缓存、通达信日线增量同步和财经新闻采集。
+一个模块化的 Python 项目，提供多市场行情日报、新股新债日历、历史行情缓存、通达信日线及股票全维度增量采集、财经新闻采集和本地报告网站。
 
 ## 功能模块
 
@@ -9,9 +9,10 @@
 ├─ config/                 # 标的和同步配置
 ├─ docs/                   # 专题文档
 ├─ finance_news/           # 新浪/东方财富新闻采集与标准化
+├─ invest_tools/           # 统一命令入口和功能发现
 ├─ market_report/          # 行情数据源、历史缓存、报告渲染及命令入口
 ├─ market_web/             # 每日首次生成、SQLite 归档和浏览器页面/API
-├─ tdx_history/            # 通达信历史数据配置、存储、同步服务及命令入口
+├─ tdx_history/            # 通达信历史数据域；stock_data/ 为股票全维度采集
 ├─ tests/                  # 核心业务单元测试
 ├─ .gitignore              # 缓存、运行结果和本地配置忽略规则
 └─ pyproject.toml          # 项目元数据、依赖和命令入口
@@ -44,6 +45,15 @@ $env:ALPHAVANTAGE_API_KEY = "your-key"
 
 ## 使用方法
 
+所有功能可从统一入口发现，原有独立命令仍然兼容：
+
+```powershell
+invest-tools --help
+invest-tools report
+invest-tools history --help
+invest-tools stock-data --help
+```
+
 ### 1. 建立历史缓存
 
 ```powershell
@@ -62,7 +72,9 @@ market-report
 ```
 
 默认写入 `reports/market_report_YYYY-MM-DD.md`。标的统一在
-`config/market_universe.json` 中维护。
+`config/market_universe.json` 中维护。日报还会通过通达信读取今天及未来的新股、新债
+申购信息，并通过 AKShare 公开接口补充中签率、正股、评级和上市日期；补充接口失败时
+不会阻断主报告生成，而会在“外部接口状态”中显示警告。
 
 ### 3. 同步通达信 A 股/ETF 十年日线
 
@@ -73,12 +85,24 @@ tdx-history
 
 默认每类同步 5 个标的作为冒烟验证；使用 `tdx-history --all`
 才同步通达信中的所有 A 股和 ETF。首次回补、后续增量追加到 SQLite。配置和数据结构详见
-[通达信历史同步说明](docs/tdx-history.md)。
+[通达信历史同步说明](docs/guides/tdx-history.md)。
 
 需要固定沪深300、中证500和高流动性 ETF 研究样本时，先运行
 `tdx-history-config` 生成显式代码配置，再把该配置交给 `tdx-history --all`。
 
-### 4. 启动日报网站
+### 4. 采集十只股票的全维度通达信数据
+
+```powershell
+tdx-stock-data
+# 或：invest-tools stock-data
+```
+
+样本在 `config/tdx_stock_samples.json` 中维护，覆盖沪深主板、创业板、科创板和北交所。
+程序将十年日线、公司行为、股本、财务、快照、扩展指标和板块关系写入本地
+`data/tdx_stock_data.sqlite3`。结构和查询示例见
+[股票全维度采集指南](docs/guides/tdx-stock-data.md)。
+
+### 5. 启动日报网站
 
 ```powershell
 market-web
@@ -101,13 +125,15 @@ market-web
 - `/reports/YYYY-MM-DD`：已归档的历史报告；
 - `/api/reports/today`：今日完整 JSON；
 - `/api/reports`：归档索引；
+- `/api/offerings/today`：今日已持久化的新股、新债事件；
+- `/api/offerings/YYYY-MM-DD`：指定历史日报的新股、新债事件；
 - `/health`：服务及数据库健康状态。
 
 使用 `python -m market_web --help` 可调整监听地址、端口、数据库和行情配置路径。
 默认只监听 `127.0.0.1`，且保持单进程运行，以保证本地通达信插件访问与每日首次
 生成逻辑一致。
 
-### 5. 获取财经新闻
+### 6. 获取财经新闻
 
 ```powershell
 finance-news
@@ -131,3 +157,4 @@ python -m pytest
 - 加密资产历史数据来自 Coinbase，当日报价来自 Kraken。
 - “三年价格分位”反映历史价格位置，不等同于 PE、PB 等估值指标。
 - 商品期货使用具体合约代码，临近到期时需在配置中切换主力合约。
+- 新股、新债近期申购信息来自通达信，东方财富公开数据用于补充发行和上市字段；最终安排以交易所及发行人公告为准。

@@ -29,7 +29,7 @@
 - `tdx_history/config_builder.py`
 - `pyproject.toml`
 - `tests/test_tdx_history.py`
-- `docs/tdx-history.md`
+- `docs/guides/tdx-history.md`
 
 ### Acceptance Criteria
 
