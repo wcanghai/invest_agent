@@ -1,0 +1,76 @@
+{
+  "tdx_user_dir": "D:\\SoftWare\\TDX\\PYPlugins\\user",
+  "universes": [],
+  "instruments": [
+    {
+      "code": "600519.SH",
+      "name": "贵州茅台",
+      "kind": "stock",
+      "dividend_type": "none",
+      "sample_type": "沪市主板-消费龙头"
+    },
+    {
+      "code": "601318.SH",
+      "name": "中国平安",
+      "kind": "stock",
+      "dividend_type": "none",
+      "sample_type": "沪市主板-金融保险-H股"
+    },
+    {
+      "code": "000001.SZ",
+      "name": "平安银行",
+      "kind": "stock",
+      "dividend_type": "none",
+      "sample_type": "深市主板-银行"
+    },
+    {
+      "code": "000858.SZ",
+      "name": "五粮液",
+      "kind": "stock",
+      "dividend_type": "none",
+      "sample_type": "深市主板-消费"
+    },
+    {
+      "code": "300750.SZ",
+      "name": "宁德时代",
+      "kind": "stock",
+      "dividend_type": "none",
+      "sample_type": "创业板-新能源"
+    },
+    {
+      "code": "300059.SZ",
+      "name": "东方财富",
+      "kind": "stock",
+      "dividend_type": "none",
+      "sample_type": "创业板-金融科技"
+    },
+    {
+      "code": "688981.SH",
+      "name": "中芯国际",
+      "kind": "stock",
+      "dividend_type": "none",
+      "sample_type": "科创板-半导体-H股"
+    },
+    {
+      "code": "688041.SH",
+      "name": "海光信息",
+      "kind": "stock",
+      "dividend_type": "none",
+      "sample_type": "科创板-计算芯片"
+    },
+    {
+      "code": "920000.BJ",
+      "name": "苏轴股份",
+      "kind": "stock",
+      "dividend_type": "none",
+      "sample_type": "北交所-制造业"
+    },
+    {
+      "code": "920001.BJ",
+      "name": "纬达光电",
+      "kind": "stock",
+      "dividend_type": "none",
+      "sample_type": "北交所-新材料"
+    }
+  ]
+}

@@ -2,16 +2,32 @@
 
 from __future__ import annotations
 
+import os
+import sys
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 
-from get_midea_daily_data import load_tq
-
-
 KLINE_FIELDS = ["Open", "High", "Low", "Close", "Volume", "Amount"]
 SNAPSHOT_FIELDS = ["Amount", "UpHome", "DownHome", "ErrorId"]
+DEFAULT_TDX_USER_DIR = Path(r"D:\SoftWare\TDX\PYPlugins\user")
+
+
+def load_tq():
+    """加载通达信 TQ 插件；可用 ``TDX_USER_DIR`` 覆盖默认目录。"""
+    user_dir = Path(os.getenv("TDX_USER_DIR", str(DEFAULT_TDX_USER_DIR))).expanduser()
+    if not user_dir.is_dir():
+        raise FileNotFoundError(
+            f"未找到通达信 Python 插件目录：{user_dir}。"
+            "请设置环境变量 TDX_USER_DIR。"
+        )
+    user_dir_text = str(user_dir)
+    if user_dir_text not in sys.path:
+        sys.path.insert(0, user_dir_text)
+    from tqcenter import tq  # pylint: disable=import-outside-toplevel
+
+    return tq
 
 
 def latest_daily_rows(tq: Any, names: dict[str, str]) -> list[dict[str, Any]]:

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="每日多市场行情报告与永久历史记录">
+  <title>{{ record.report_date }} · 多市场行情日报</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='/site.css') }}">
+  <script src="{{ url_for('static', path='/report-tables.js') }}" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/" aria-label="查看今日日报">
+      <span class="brand-mark">MR</span>
+      <span><strong>市场脉搏</strong><small>每日多市场行情归档</small></span>
+    </a>
+    <div class="header-meta">
+      <span>报告归档日</span>
+      <strong>{{ record.report_date }}</strong>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="history-panel" aria-label="历史报告">
+      <div class="history-heading">
+        <span>历史报告</span>
+        <small>{{ history|length }} 份</small>
+      </div>
+      <nav>
+        {% for item in history %}
+        <a href="/reports/{{ item.report_date }}" {% if item.report_date == record.report_date %}aria-current="page"{% endif %}>
+          <span>{{ item.report_date }}</span>
+          <small>数据 {{ item.snapshot.get('source_date', '—') }}</small>
+        </a>
+        {% endfor %}
+      </nav>
+    </aside>
+
+    <section class="report-shell">
+      <div class="report-intro">
+        <div>
+          <p class="eyebrow">DAILY MARKET BRIEF</p>
+          <h1>{{ record.report_date }} 市场日报</h1>
+          <p>行情数据日期 {{ source_date }} · 首次生成于 {{ record.generated_at.strftime('%H:%M:%S') }} · 已永久保存</p>
+        </div>
+        <a class="api-link" href="/api/reports/{{ record.report_date }}">查看 JSON</a>
+      </div>
+
+      <div class="summary-grid" aria-label="市场概览">
+        <article><span>沪深北成交额</span><strong>{{ total_amount }}</strong></article>
+        <article><span>上涨家数</span><strong class="up">{{ up_count }}</strong></article>
+        <article><span>下跌家数</span><strong class="down">{{ down_count }}</strong></article>
+        <article><span>新股新债事件</span><strong>{{ offering_count }}</strong></article>
+        <article><span>今日可申购</span><strong>{{ today_subscription_count }}</strong></article>
+      </div>
+
+      <article class="markdown-report" data-enhanced-report>
+        {{ report_html }}
+      </article>
+    </section>
+  </main>
+
+  <footer>数据仅供研究参考，不构成投资建议。</footer>
+</body>
+</html>

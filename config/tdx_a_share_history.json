@@ -5,11 +5,6 @@
       "market": "5",
       "kind": "stock",
       "dividend_type": "none"
-    },
-    {
-      "market": "31",
-      "kind": "etf",
-      "dividend_type": "none"
     }
   ],
   "instruments": []

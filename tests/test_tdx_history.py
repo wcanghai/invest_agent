@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 import json
 from pathlib import Path
 import tempfile
@@ -6,9 +6,13 @@ import unittest
 
 import pandas as pd
 
-from tdx_history.config import Instrument, load_config
+from tdx_history.config import Instrument, SyncConfig, UniverseSpec, load_config
+from tdx_history.cli import _completed_through
+from tdx_history.config_builder import IndexSpec, build_target_payload, write_target_config
 from tdx_history.repository import HistoryRepository
 from tdx_history.service import HistorySyncService
+from tdx_history.tdx_source import TdxDailySource
+from tdx_history.universe import discover_instruments, select_instruments
 
 
 def bars(*dates: str) -> pd.DataFrame:
@@ -61,6 +65,212 @@ class TdxHistoryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "重复"):
             load_config(config)
 
+    def test_completed_through_skips_intraday_and_weekends(self) -> None:
+        self.assertEqual(
+            _completed_through(datetime(2026, 8, 22, 10, 0)),
+            date(2026, 8, 21),
+        )
+        self.assertEqual(
+            _completed_through(datetime(2026, 8, 24, 10, 0)),
+            date(2026, 8, 21),
+        )
+        self.assertEqual(
+            _completed_through(datetime(2026, 8, 24, 17, 0)),
+            date(2026, 8, 24),
+        )
+
+    def test_load_config_accepts_a_share_and_etf_universes(self) -> None:
+        config = self.root / "config.json"
+        config.write_text(
+            json.dumps(
+                {
+                    "tdx_user_dir": "D:/tdx",
+                    "universes": [
+                        {"market": "5", "kind": "stock"},
+                        {"market": "31", "kind": "etf", "dividend_type": "front"},
+                    ],
+                    "instruments": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+        loaded = load_config(config)
+        self.assertEqual(
+            loaded.universes,
+            (
+                UniverseSpec("5", "stock", "none"),
+                UniverseSpec("31", "etf", "front"),
+            ),
+        )
+        self.assertEqual(loaded.instruments, ())
+
+    def test_load_config_requires_universe_or_manual_instrument(self) -> None:
+        config = self.root / "config.json"
+        config.write_text(
+            json.dumps({"tdx_user_dir": "D:/tdx", "universes": [], "instruments": []}),
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(ValueError, "至少需要"):
+            load_config(config)
+
+    def test_tdx_source_converts_stock_list_to_instruments(self) -> None:
+        class FakeTq:
+            def initialize(self, _: str) -> None:
+                pass
+
+            def close(self) -> None:
+                pass
+
+            def get_stock_list(self, market: str, list_type: int) -> list[dict[str, str]]:
+                self.last_call = (market, list_type)
+                return [
+                    {"Code": "600000.SH", "Name": "浦发银行"},
+                    {"Code": "600004.SH", "Name": "白云机场"},
+                ]
+
+        tq = FakeTq()
+        with TdxDailySource(self.root, self.root / "caller.py", tq=tq) as source:
+            instruments = source.list_instruments(UniverseSpec("5", "stock"))
+        self.assertEqual(tq.last_call, ("5", 1))
+        self.assertEqual(
+            instruments,
+            (
+                Instrument("600000.SH", "浦发银行", "stock"),
+                Instrument("600004.SH", "白云机场", "stock"),
+            ),
+        )
+
+    def test_tdx_source_treats_empty_incremental_interval_as_empty_frame(self) -> None:
+        class FakeTq:
+            def initialize(self, _: str) -> None:
+                pass
+
+            def close(self) -> None:
+                pass
+
+            def get_market_data(self, **_: object) -> dict[str, object]:
+                return {}
+
+        with TdxDailySource(self.root, self.root / "caller.py", tq=FakeTq()) as source:
+            frame = source.fetch_daily(
+                "600000.SH", date(2026, 8, 22), date(2026, 8, 22), "none"
+            )
+        self.assertTrue(frame.empty)
+        self.assertEqual(
+            list(frame.columns),
+            ["trade_date", "open", "high", "low", "close", "volume", "amount"],
+        )
+
+    def test_tdx_source_calculates_positive_average_amounts_in_chunks(self) -> None:
+        class FakeTq:
+            def initialize(self, _: str) -> None:
+                pass
+
+            def close(self) -> None:
+                pass
+
+            def get_market_data(self, **values: object) -> dict[str, pd.DataFrame]:
+                codes = values["stock_list"]
+                assert isinstance(codes, list)
+                return {
+                    "Amount": pd.DataFrame(
+                        {code: [0, 100, 300] if code == "510300.SH" else [50, None, 150] for code in codes}
+                    )
+                }
+
+        with TdxDailySource(self.root, self.root / "caller.py", tq=FakeTq()) as source:
+            result = source.average_amounts(
+                ["510300.SH", "510500.SH"],
+                date(2026, 8, 1),
+                date(2026, 8, 21),
+                chunk_size=1,
+            )
+        self.assertEqual(result, {"510300.SH": 200.0, "510500.SH": 100.0})
+
+    def test_target_config_is_explicit_ranked_and_loadable(self) -> None:
+        groups = {
+            "23": (
+                Instrument("000001.SZ", "平安银行", "stock"),
+                Instrument("600000.SH", "浦发银行", "stock"),
+            ),
+            "24": (
+                Instrument("000009.SZ", "中国宝安", "stock"),
+                Instrument("600004.SH", "白云机场", "stock"),
+            ),
+            "31": tuple(
+                Instrument(f"{510000 + index:06d}.SH", f"ETF{index}", "etf")
+                for index in range(105)
+            ),
+        }
+
+        class FakeTargetSource:
+            def list_instruments(self, universe: UniverseSpec) -> tuple[Instrument, ...]:
+                return groups[universe.market]
+
+            def average_amounts(
+                self,
+                codes: list[str],
+                start: date,
+                end: date,
+                chunk_size: int = 100,
+            ) -> dict[str, float]:
+                self.window = (start, end, chunk_size)
+                return {code: float(index + 1) for index, code in enumerate(codes)}
+
+        source = FakeTargetSource()
+        payload = build_target_payload(
+            source,
+            Path("D:/tdx"),
+            date(2026, 8, 21),
+            etf_count=100,
+            lookback_days=60,
+            chunk_size=25,
+            index_specs=(IndexSpec("hs300", "23", 2), IndexSpec("csi500", "24", 2)),
+        )
+        self.assertEqual(len(payload["instruments"]), 104)
+        selection = payload["selection"]
+        self.assertIsInstance(selection, dict)
+        ranking = selection["etf_ranking"]
+        self.assertEqual(ranking["codes"][0], "510104.SH")
+        self.assertEqual(source.window, (date(2026, 6, 23), date(2026, 8, 21), 25))
+
+        path = self.root / "target.json"
+        write_target_config(path, payload)
+        loaded = load_config(path)
+        self.assertEqual(len(loaded.instruments), 104)
+        self.assertEqual(loaded.universes, ())
+
+    def test_discovery_deduplicates_and_limits_each_kind(self) -> None:
+        manual = Instrument("600000.SH", "手工名称", "stock")
+        config = SyncConfig(
+            tdx_user_dir=self.root,
+            instruments=(manual,),
+            universes=(UniverseSpec("5", "stock"), UniverseSpec("31", "etf")),
+        )
+
+        class FakeLister:
+            def list_instruments(self, universe: UniverseSpec) -> tuple[Instrument, ...]:
+                if universe.kind == "stock":
+                    return (
+                        Instrument("600000.SH", "发现名称", "stock"),
+                        Instrument("600004.SH", "白云机场", "stock"),
+                        Instrument("600006.SH", "东风股份", "stock"),
+                    )
+                return (
+                    Instrument("510300.SH", "沪深300ETF", "etf"),
+                    Instrument("510500.SH", "中证500ETF", "etf"),
+                )
+
+        discovered = discover_instruments(config, FakeLister())
+        self.assertEqual(discovered[0], manual)
+        self.assertEqual(len(discovered), 5)
+        selected = select_instruments(discovered, limit_per_kind=1)
+        self.assertEqual([item.code for item in selected], ["600000.SH", "510300.SH"])
+        exact = select_instruments(discovered, symbols={"600006.SH", "510500.SH"})
+        self.assertEqual([item.code for item in exact], ["600006.SH", "510500.SH"])
+        with self.assertRaisesRegex(ValueError, "必须大于 0"):
+            select_instruments(discovered, limit_per_kind=0)
+
     def test_repository_inserts_each_trading_day_only_once(self) -> None:
         instrument = Instrument("510300.SH", "沪深300ETF", "etf")
         with HistoryRepository(self.root / "history.sqlite3") as repository:
@@ -80,10 +290,14 @@ class TdxHistoryTests(unittest.TestCase):
         source = FakeSource(bars("2016-08-20", "2026-08-18", "2026-08-19", "2026-08-20"))
         with HistoryRepository(self.root / "history.sqlite3") as repository:
             service = HistorySyncService(repository, source, years=10)
-            first = service.sync((instrument,), today=date(2026, 8, 19))[0]
+            progress = []
+            first = service.sync(
+                (instrument,), today=date(2026, 8, 19), on_result=lambda *item: progress.append(item)
+            )[0]
             self.assertEqual(first.status, "updated")
             self.assertEqual(first.inserted_rows, 3)
             self.assertEqual(source.calls[0][1], date(2016, 8, 19))
+            self.assertEqual(progress, [(1, 1, first)])
 
             second = service.sync((instrument,), today=date(2026, 8, 20))[0]
             self.assertEqual(second.status, "updated")
