@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import Protocol
+from typing import Callable, Protocol
 
 import pandas as pd
 
@@ -40,26 +40,32 @@ class HistorySyncService:
         self.source = source
         self.years = years
 
-    def sync(self, instruments: tuple[Instrument, ...], today: date | None = None) -> list[SyncResult]:
+    def sync(
+        self,
+        instruments: tuple[Instrument, ...],
+        today: date | None = None,
+        on_result: Callable[[int, int, SyncResult], None] | None = None,
+    ) -> list[SyncResult]:
         effective_today = today or date.today()
         run_id = self.repository.start_run(len(instruments))
         results: list[SyncResult] = []
         for instrument in instruments:
             try:
-                results.append(self._sync_one(instrument, effective_today))
+                result = self._sync_one(instrument, effective_today)
             except Exception as error:  # 单只失败隔离，并由结果显式报告
-                results.append(
-                    SyncResult(
-                        code=instrument.code,
-                        status="failed",
-                        query_start=None,
-                        query_end=None,
-                        received_rows=0,
-                        inserted_rows=0,
-                        total_rows=self.repository.count_bars(instrument.code),
-                        message=f"{type(error).__name__}: {error}",
-                    )
+                result = SyncResult(
+                    code=instrument.code,
+                    status="failed",
+                    query_start=None,
+                    query_end=None,
+                    received_rows=0,
+                    inserted_rows=0,
+                    total_rows=self.repository.count_bars(instrument.code),
+                    message=f"{type(error).__name__}: {error}",
                 )
+            results.append(result)
+            if on_result:
+                on_result(len(results), len(instruments), result)
         inserted = sum(result.inserted_rows for result in results)
         failed = sum(result.status == "failed" for result in results)
         self.repository.finish_run(

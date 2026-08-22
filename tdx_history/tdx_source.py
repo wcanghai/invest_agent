@@ -9,8 +9,11 @@ from typing import Any
 
 import pandas as pd
 
+from tdx_history.config import Instrument, UniverseSpec
+
 
 FIELDS = ("Open", "High", "Low", "Close", "Volume", "Amount")
+BAR_COLUMNS = ("trade_date", "open", "high", "low", "close", "volume", "amount")
 
 
 class TdxDailySource:
@@ -41,6 +44,39 @@ class TdxDailySource:
             self.tq.close()
             self._connected = False
 
+    def list_instruments(self, universe: UniverseSpec) -> tuple[Instrument, ...]:
+        """读取一个通达信证券集合的代码和名称。"""
+        if not self._connected:
+            raise RuntimeError("通达信数据源尚未连接。")
+        payload = self.tq.get_stock_list(universe.market, list_type=1)
+        if not isinstance(payload, list) or not payload:
+            raise RuntimeError(f"通达信证券集合 {universe.market} 返回空列表或非列表。")
+
+        instruments: list[Instrument] = []
+        seen: set[str] = set()
+        for index, item in enumerate(payload):
+            if not isinstance(item, dict):
+                raise RuntimeError(f"证券集合 {universe.market} 第 {index + 1} 项不是对象。")
+            code = item.get("Code")
+            name = item.get("Name")
+            if not isinstance(code, str) or not code.strip():
+                raise RuntimeError(f"证券集合 {universe.market} 第 {index + 1} 项缺少 Code。")
+            if not isinstance(name, str) or not name.strip():
+                raise RuntimeError(f"证券集合 {universe.market} 中 {code} 缺少 Name。")
+            normalized_code = code.strip().upper()
+            if normalized_code in seen:
+                continue
+            seen.add(normalized_code)
+            instruments.append(
+                Instrument(
+                    normalized_code,
+                    name.strip(),
+                    universe.kind,
+                    universe.dividend_type,
+                )
+            )
+        return tuple(instruments)
+
     def fetch_daily(
         self,
         code: str,
@@ -61,15 +97,17 @@ class TdxDailySource:
             period="1d",
             fill_data=False,
         )
-        if not payload or "Close" not in payload:
-            raise RuntimeError(f"通达信未返回 {code} 的日线数据。")
+        if not payload:
+            return pd.DataFrame(columns=BAR_COLUMNS)
+        if "Close" not in payload:
+            raise RuntimeError(f"通达信未返回 {code} 的收盘价字段。")
         missing = [field for field in FIELDS if field not in payload]
         if missing:
             raise RuntimeError(f"通达信返回 {code} 时缺少字段：{missing}")
 
         close = _series(payload["Close"], code).dropna()
         if close.empty:
-            return pd.DataFrame(columns=["trade_date", "open", "high", "low", "close", "volume", "amount"])
+            return pd.DataFrame(columns=BAR_COLUMNS)
         result = pd.DataFrame(index=close.index)
         result["trade_date"] = close.index.strftime("%Y-%m-%d")
         for source_name, target_name in (

@@ -64,14 +64,15 @@ market-report
 默认写入 `reports/market_report_YYYY-MM-DD.md`。标的统一在
 `config/market_universe.json` 中维护。
 
-### 3. 同步通达信十年日线
+### 3. 同步通达信 A 股/ETF 十年日线
 
 ```powershell
 tdx-history
 # 或：python -m tdx_history
 ```
 
-该命令首次回补、后续增量追加到 SQLite。配置和数据结构详见
+默认每类同步 5 个标的作为冒烟验证；使用 `tdx-history --all`
+才同步通达信中的所有 A 股和 ETF。首次回补、后续增量追加到 SQLite。配置和数据结构详见
 [通达信历史同步说明](docs/tdx-history.md)。
 
 ### 4. 启动日报网站
