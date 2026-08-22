@@ -97,9 +97,7 @@ def test_web_pages_and_api_use_the_same_persisted_report(tmp_path):
         script = client.get("/static/report-tables.js")
         assert script.status_code == 200
         assert 'className = "sort-toggle"' in script.text
-        assert 'icon: "↕"' in script.text
-        assert 'icon: "↓"' in script.text
-        assert 'icon: "↑"' in script.text
+        assert "icon:" not in script.text
         assert "涨幅优先" in script.text
         assert "跌幅优先" in script.text
         assert "change > 3" in script.text
@@ -107,6 +105,10 @@ def test_web_pages_and_api_use_the_same_persisted_report(tmp_path):
         assert "signal-marker" not in script.text
         assert "强势" not in script.text
         assert "高位" not in script.text
+        style = client.get("/static/site.css").text
+        assert '.sort-toggle::before, .sort-toggle::after' in style
+        assert "color: #781123" in style
+        assert "font-weight: 800" in style
 
         today_api = client.get("/api/reports/today")
         assert today_api.status_code == 200

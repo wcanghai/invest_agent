@@ -4,9 +4,9 @@
   const CHANGE_HEADERS = new Set(["涨跌幅", "24h 变动"]);
   const PERCENTILE_HEADER = "三年价格分位";
   const SORT_STATES = [
-    { direction: "default", icon: "↕", label: "配置顺序" },
-    { direction: "descending", icon: "↓", label: "涨幅优先" },
-    { direction: "ascending", icon: "↑", label: "跌幅优先" },
+    { direction: "default", label: "配置顺序" },
+    { direction: "descending", label: "涨幅优先" },
+    { direction: "ascending", label: "跌幅优先" },
   ];
 
   function numericValue(cell) {
@@ -59,7 +59,6 @@
     function showState() {
       const state = SORT_STATES[stateIndex];
       const nextState = SORT_STATES[(stateIndex + 1) % SORT_STATES.length];
-      button.textContent = state.icon;
       button.dataset.sortDirection = state.direction;
       button.setAttribute(
         "aria-label",
