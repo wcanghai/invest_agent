@@ -5,7 +5,7 @@ import pandas as pd
 
 from market_report.config import load_universe
 from market_report.history import attach_price_positions, save_history
-from market_report.report import eastmoney_quote_url, render
+from market_report.report import a_share_table, eastmoney_quote_url, render
 
 
 def test_default_config_includes_midea_and_moutai() -> None:
@@ -41,6 +41,15 @@ def test_eastmoney_quote_urls_cover_stocks_etfs_and_indices() -> None:
     assert eastmoney_quote_url("512880.SH") == "https://quote.eastmoney.com/sh512880.html"
     assert eastmoney_quote_url("399006.SZ", index=True) == "https://quote.eastmoney.com/zs399006.html"
     assert eastmoney_quote_url("932000.CSI", index=True) == "https://quote.eastmoney.com/zz/2.932000.html"
+
+
+def test_a_share_table_preserves_configured_row_order() -> None:
+    rows = [
+        {"name": "美的集团", "code": "000333.SZ", "status": "测试"},
+        {"name": "贵州茅台", "code": "600519.SH", "status": "测试"},
+    ]
+    table = a_share_table(rows)
+    assert table.index("美的集团") < table.index("贵州茅台")
 
 
 def test_three_year_price_position_uses_cached_closes(tmp_path: Path) -> None:

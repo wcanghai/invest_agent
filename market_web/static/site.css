@@ -66,6 +66,16 @@ a { color: inherit; }
 .markdown-report td a { color: var(--green); font-weight: 600; }
 .markdown-report ul { padding-left: 20px; color: var(--muted); }
 .markdown-report li { margin: 8px 0; }
+.table-sort-controls { display: flex; flex-wrap: wrap; gap: 7px; margin: 0 0 10px; }
+.table-sort-controls button { padding: 6px 11px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--muted); cursor: pointer; font: inherit; font-size: 12px; }
+.table-sort-controls button:hover { border-color: var(--green); color: var(--green); }
+.table-sort-controls button[aria-pressed="true"] { border-color: var(--green); background: var(--green); color: white; }
+.markdown-report td[class*="signal-"] { position: relative; font-weight: 700; }
+.markdown-report td.signal-up { background: #fff0ed; color: var(--red); box-shadow: inset 3px 0 var(--red); }
+.markdown-report td.signal-down { background: #edf7f1; color: var(--green); box-shadow: inset 3px 0 var(--green); }
+.markdown-report td.signal-high { background: #fff4df; color: #9a5b00; box-shadow: inset 3px 0 #d88a12; }
+.markdown-report td.signal-low { background: #eaf3fb; color: #24658f; box-shadow: inset 3px 0 #4385b2; }
+.signal-marker { display: inline-block; margin-left: 6px; padding: 2px 5px; border: 1px solid currentColor; border-radius: 999px; font-size: 10px; font-weight: 600; line-height: 1; vertical-align: 1px; }
 
 .error-shell { width: min(720px, calc(100% - 36px)); margin: 10vh auto; padding: clamp(24px, 6vw, 56px); background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }
 .error-shell h1 { font-family: Georgia, "Microsoft YaHei", serif; font-weight: 500; }

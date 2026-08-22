@@ -17,7 +17,10 @@ def _snapshot(generated_at: datetime) -> MarketReportSnapshot:
         generated_at=generated_at,
         markdown=(
             "# 测试市场日报\n\n"
-            "| 标的 | 收盘价 |\n|---|---:|\n| 美的集团 | 80.00 |\n\n"
+            "| 标的 | 涨跌幅 | 三年价格分位 |\n"
+            "|---|---:|---:|\n"
+            "| 美的集团 | +4.20% | 85.00% |\n"
+            "| 贵州茅台 | -3.50% | 10.00% |\n\n"
             "[东方财富](https://quote.eastmoney.com/sz000333.html)"
             "<script>alert('unsafe')</script>"
         ),
@@ -87,8 +90,17 @@ def test_web_pages_and_api_use_the_same_persisted_report(tmp_path):
         assert "测试市场日报" in page.text
         assert "美的集团" in page.text
         assert "https://quote.eastmoney.com/sz000333.html" in page.text
+        assert 'target="_blank"' in page.text
+        assert 'rel="noopener noreferrer"' in page.text
         assert "<script>" not in page.text
         assert client.get("/static/site.css").status_code == 200
+        script = client.get("/static/report-tables.js")
+        assert script.status_code == 200
+        assert "默认排序" in script.text
+        assert "涨幅优先" in script.text
+        assert "跌幅优先" in script.text
+        assert "change > 3" in script.text
+        assert "percentile > 80" in script.text
 
         today_api = client.get("/api/reports/today")
         assert today_api.status_code == 200

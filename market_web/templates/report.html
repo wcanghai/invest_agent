@@ -6,6 +6,7 @@
   <meta name="description" content="每日多市场行情报告与永久历史记录">
   <title>{{ record.report_date }} · 多市场行情日报</title>
   <link rel="stylesheet" href="{{ url_for('static', path='/site.css') }}">
+  <script src="{{ url_for('static', path='/report-tables.js') }}" defer></script>
 </head>
 <body>
   <header class="site-header">
@@ -51,7 +52,7 @@
         <article><span>下跌家数</span><strong class="down">{{ down_count }}</strong></article>
       </div>
 
-      <article class="markdown-report">
+      <article class="markdown-report" data-enhanced-report>
         {{ report_html }}
       </article>
     </section>

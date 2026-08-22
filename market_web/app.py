@@ -8,6 +8,7 @@ from typing import Any
 
 import bleach
 import markdown
+from bleach.linkifier import Linker
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -30,6 +31,21 @@ ALLOWED_TAGS = {
     "hr", "li", "ol", "p", "pre", "strong", "table", "tbody", "td",
     "th", "thead", "tr", "ul",
 }
+
+
+def _external_quote_link(
+    attributes: dict[Any, str], new: bool = False
+) -> dict[Any, str]:
+    """东方财富链接在新页签打开，并阻断新页签反向控制原页面。"""
+    del new
+    href = attributes.get((None, "href"), "")
+    if href.startswith("https://quote.eastmoney.com/"):
+        attributes[(None, "target")] = "_blank"
+        attributes[(None, "rel")] = "noopener noreferrer"
+    return attributes
+
+
+EASTMONEY_LINKER = Linker(callbacks=[_external_quote_link])
 
 
 def create_app(
@@ -146,7 +162,7 @@ def _markdown_html(value: str) -> Markup:
         protocols={"https"},
         strip=True,
     )
-    return Markup(clean)
+    return Markup(EASTMONEY_LINKER.linkify(clean))
 
 
 def _format_amount(value: Any) -> str:
