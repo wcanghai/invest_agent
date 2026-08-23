@@ -1,160 +1,80 @@
 # 多市场投资数据工具
 
-一个模块化的 Python 项目，提供多市场行情日报、新股新债日历、历史行情缓存、通达信日线及股票全维度增量采集、财经新闻采集和本地报告网站。
+项目只保留两个业务域：`daily_report` 构建和展示每日投资日报，`tdx_data` 独立归档通达信股票数据。行情、新闻、报告快照统一由 SQLite 管理，不再使用 CSV 缓存。
 
-## 功能模块
+## 最终目录
 
 ```text
-.
-├─ config/                 # 标的和同步配置
-├─ docs/                   # 专题文档
-├─ finance_news/           # 新浪/东方财富新闻采集与标准化
-├─ invest_tools/           # 统一命令入口和功能发现
-├─ market_report/          # 行情数据源、历史缓存、报告渲染及命令入口
-├─ market_web/             # 每日首次生成、SQLite 归档和浏览器页面/API
-├─ tdx_history/            # 通达信历史数据域；stock_data/ 为股票全维度采集
-├─ tests/                  # 核心业务单元测试
-├─ .gitignore              # 缓存、运行结果和本地配置忽略规则
-└─ pyproject.toml          # 项目元数据、依赖和命令入口
+invest_202608/
+├─ daily_report/                 # 日报业务域
+│  ├─ data_sources/              # 通达信、公开市场、新闻和发行数据采集
+│  ├─ storage/                   # 日报统一 SQLite 的表结构与 Repository
+│  ├─ web/                       # FastAPI、HTML 模板和静态资源
+│  ├─ cache_cli.py               # 同步近年历史行情
+│  ├─ cli.py                     # 生成 Markdown 日报
+│  ├─ config.py                  # 读取并校验标的配置
+│  ├─ models.py                  # 报告快照和持久化记录模型
+│  ├─ news_cli.py                # 采集并保存财经新闻
+│  ├─ rendering.py               # Markdown 渲染
+│  └─ service.py                 # 日报采集、指标计算和渲染编排
+├─ tdx_data/                     # 独立的通达信完整归档业务域
+│  ├─ additional_data.py         # 核心归档之外的只读接口、说明和样例
+│  ├─ archive_service.py         # 股票遍历与增量归档流程
+│  ├─ cli.py                     # 完整归档命令入口
+│  ├─ client.py                  # TQ 连接和只读接口适配
+│  ├─ field_mapping.py           # 通达信字段中文映射
+│  └─ repository.py              # TDX 专用 SQLite 表和写入操作
+├─ config/market_universe.json   # 日报关注标的
+├─ data/                         # 本地 SQLite 数据（Git 忽略）
+├─ docs/                         # 当前架构的生命周期文档
+├─ reports/                      # 命令行生成的 Markdown（Git 忽略）
+├─ tests/                        # 按两个业务域划分的离线测试
+├─ AGENTS.md                     # 仓库协作约定
+└─ pyproject.toml                # 依赖、包发现和命令入口
 ```
 
-运行时生成的 `data/history/`、`data/news/`、`data/*.sqlite3` 和 `reports/` 不纳入版本控制。
+## 数据库
 
-## 环境安装
+`data/daily_report.sqlite3` 是日报唯一数据库：
 
-需要 Python 3.11 或更高版本：
+- `instruments`：配置标的和顺序；
+- `market_bars`：多市场历史日线，按“分类、代码、日期”去重；
+- `news_items`：新浪财经、东方财富新闻，按“来源、时间、标题”去重；
+- `daily_reports`：每天第一份成功生成的 Markdown 和结构化快照；
+- `sync_runs`：数据同步审计记录。
+
+`data/tdx_archive.sqlite3` 只属于 `tdx_data`，保存股票日线、完整原始接口记录、平铺字段、板块关系、字段字典和归档运行记录。两个数据库分离，避免日报读写与大体量 TDX 归档互相影响。
+
+## 安装与命令
 
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
 python -m pip install -e ".[dev]"
-```
 
-使用 A 股相关功能前，需要启动并登录通达信客户端。通达信 Python 插件默认从
-`D:\SoftWare\TDX\PYPlugins\user` 加载，也可以通过环境变量覆盖：
-
-```powershell
-$env:TDX_USER_DIR = "D:\path\to\TDX\PYPlugins\user"
-```
-
-美股当日报价需要 Alpha Vantage 密钥：
-
-```powershell
-$env:ALPHAVANTAGE_API_KEY = "your-key"
-```
-
-## 使用方法
-
-所有功能可从统一入口发现，原有独立命令仍然兼容：
-
-```powershell
-invest-tools --help
-invest-tools report
-invest-tools history --help
-invest-tools stock-data --help
-```
-
-### 1. 建立历史缓存
-
-```powershell
-market-cache
-# 或：python -m market_report.cache_cli
-```
-
-默认缓存 `config/market_universe.json` 中标的的近五年日线。使用
-`--overwrite` 强制刷新，使用 `--help` 查看全部参数。
-
-### 2. 生成多市场日报
-
-```powershell
+market-cache --years 5
 market-report
-# 或：python -m market_report
-```
-
-默认写入 `reports/market_report_YYYY-MM-DD.md`。标的统一在
-`config/market_universe.json` 中维护。日报还会通过通达信读取今天及未来的新股、新债
-申购信息，并通过 AKShare 公开接口补充中签率、正股、评级和上市日期；补充接口失败时
-不会阻断主报告生成，而会在“外部接口状态”中显示警告。
-
-### 3. 同步通达信 A 股/ETF 十年日线
-
-```powershell
-tdx-history
-# 或：python -m tdx_history
-```
-
-默认每类同步 5 个标的作为冒烟验证；使用 `tdx-history --all`
-才同步通达信中的所有 A 股和 ETF。首次回补、后续增量追加到 SQLite。配置和数据结构详见
-[通达信历史同步说明](docs/guides/tdx-history.md)。
-
-需要固定沪深300、中证500和高流动性 ETF 研究样本时，先运行
-`tdx-history-config` 生成显式代码配置，再把该配置交给 `tdx-history --all`。
-
-### 4. 采集十只股票的全维度通达信数据
-
-```powershell
-tdx-stock-data
-# 或：invest-tools stock-data
-```
-
-样本在 `config/tdx_stock_samples.json` 中维护，覆盖沪深主板、创业板、科创板和北交所。
-程序将十年日线、公司行为、股本、财务、快照、扩展指标和板块关系写入本地
-`data/tdx_stock_data.sqlite3`。结构和查询示例见
-[股票全维度采集指南](docs/guides/tdx-stock-data.md)。
-
-### 5. 启动日报网站
-
-```powershell
-market-web
-# 或：python -m market_web
-```
-
-浏览器打开 <http://127.0.0.1:8000>。网站按本机自然日工作：当天第一次访问
-首页或 `/api/reports/today` 时采集行情并计算报告，成功后写入
-`data/market_reports.sqlite3`；同一天后续访问直接读取该记录。服务重启后记录仍然
-存在，历史报告可从页面左侧归档或 `/api/reports` 查看。
-
-标的表默认保持 `config/market_universe.json` 中的配置顺序；点击涨跌幅列名旁的
-箭头，可在配置顺序、涨幅优先和跌幅优先之间循环切换。涨跌幅超过 ±3%，或三年
-价格分位高于 80% / 低于 20% 时，网页会用颜色和底纹高亮，其中高分位使用深红
-粗体强调；东方财富行情链接在新页签打开。
-
-常用接口：
-
-- `/`：今日报告网页；
-- `/reports/YYYY-MM-DD`：已归档的历史报告；
-- `/api/reports/today`：今日完整 JSON；
-- `/api/reports`：归档索引；
-- `/api/offerings/today`：今日已持久化的新股、新债事件；
-- `/api/offerings/YYYY-MM-DD`：指定历史日报的新股、新债事件；
-- `/health`：服务及数据库健康状态。
-
-使用 `python -m market_web --help` 可调整监听地址、端口、数据库和行情配置路径。
-默认只监听 `127.0.0.1`，且保持单进程运行，以保证本地通达信插件访问与每日首次
-生成逻辑一致。
-
-### 6. 获取财经新闻
-
-```powershell
 finance-news
-# 或：python -m finance_news
+market-web --host 127.0.0.1 --port 8000
+
+tdx-full-archive --limit 10
+tdx-extra-data --sample-only
 ```
 
-默认采集当天新浪财经和东方财富快讯，保存到 `data/news/`。
+对应模块入口也可直接运行：`python -m daily_report`、`python -m daily_report.cache_cli`、`python -m daily_report.news_cli`、`python -m daily_report.web`、`python -m tdx_data` 和 `python -m tdx_data.additional_data`。
 
-## 测试
+本地通达信插件默认读取 `D:\SoftWare\TDX\PYPlugins\user`；也可设置 `TDX_USER_DIR`，完整归档命令还支持 `--tdx-user-dir`。
+
+## 日报处理逻辑
+
+1. `market-cache` 从 TDX、Yahoo Chart 和 Coinbase 同步历史行情到 SQLite。
+2. `market-report` 获取最新行情和发行事件，将最新行情幂等写入同一数据库，并直接用 SQL 计算三年价格分位。
+3. `finance-news` 采集新闻并写入 `news_items`，为后续日报新闻章节准备数据；当前渲染暂未展示新闻。
+4. `market-web` 在当天第一次请求时生成并永久保存日报；同日后续请求和服务重启均读取已有记录。
+
+## 验证
 
 ```powershell
-python -m pytest
+python -m pytest -q -p no:cacheprovider --basetemp .test-tmp
+git diff --check
 ```
 
-测试只覆盖无需外部网络和通达信客户端的核心逻辑；真实数据源应在本机环境单独验证。
-
-## 数据口径
-
-- A 股、ETF、指数和商品期货来自通达信。
-- 美股历史数据来自 Yahoo Finance，当日报价来自 Alpha Vantage。
-- 加密资产历史数据来自 Coinbase，当日报价来自 Kraken。
-- “三年价格分位”反映历史价格位置，不等同于 PE、PB 等估值指标。
-- 商品期货使用具体合约代码，临近到期时需在配置中切换主力合约。
-- 新股、新债近期申购信息来自通达信，东方财富公开数据用于补充发行和上市字段；最终安排以交易所及发行人公告为准。
+数据库、WAL/SHM、报告、缓存、凭据和 Python 字节码均不得提交。

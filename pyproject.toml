@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "multi-market-investment-tools"
 version = "1.1.0"
-description = "可配置的多市场行情日报、财经新闻和通达信历史数据工具"
+description = "可配置的多市场行情日报、财经新闻和通达信股票归档工具"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
@@ -26,21 +26,19 @@ dev = [
 ]
 
 [project.scripts]
-invest-tools = "invest_tools.cli:main"
-market-report = "market_report.cli:main"
-market-cache = "market_report.cache_cli:main"
-finance-news = "finance_news.cli:main"
-tdx-history = "tdx_history.cli:main"
-tdx-history-config = "tdx_history.config_builder:main"
-tdx-stock-data = "tdx_history.stock_data.cli:main"
-market-web = "market_web.cli:main"
+market-report = "daily_report.cli:main"
+market-cache = "daily_report.cache_cli:main"
+finance-news = "daily_report.news_cli:main"
+tdx-full-archive = "tdx_data.cli:main"
+tdx-extra-data = "tdx_data.additional_data:main"
+market-web = "daily_report.web.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["finance_news*", "invest_tools*", "market_report*", "market_web*", "tdx_history*"]
+include = ["daily_report*", "tdx_data*"]
 
 [tool.setuptools.package-data]
-market_web = ["templates/*.html", "static/*.css", "static/*.js"]
+"daily_report.web" = ["templates/*.html", "static/*.css", "static/*.js"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra"
+addopts = "-ra --basetemp=.test-tmp"
