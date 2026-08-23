@@ -1,51 +1,80 @@
-# 多市场行情日报
+# 多市场投资数据工具
 
-一个使用通达信本地 `tqcenter`、Alpha Vantage 和 Kraken 的可配置行情日报工具。
+项目只保留两个业务域：`daily_report` 构建和展示每日投资日报，`tdx_data` 独立归档通达信股票数据。行情、新闻、报告快照统一由 SQLite 管理，不再使用 CSV 缓存。
 
-## 目录
+## 最终目录
 
-- `config/market_universe.json`：所有跟踪标的的唯一配置文件。
-- `market_report/tdx.py`：A 股日线与沪深北市场宽度。
-- `market_report/external.py`：美股日线、虚拟货币报价。
-- `market_report/report.py`：Markdown 报告渲染。
-- `run_market_report.py`：每日运行入口。
-- `build_history_cache.py`：首次建立五年日线缓存。
-- `reports/`：生成的日报，按日期保存。
-
-## 配置标的
-
-直接编辑 `config/market_universe.json` 中相应的代码和名称即可。例如，A 股股票默认已配置：
-
-```json
-"a_share_stocks": {
-  "000333.SZ": "美的集团",
-  "600519.SH": "贵州茅台"
-}
+```text
+invest_202608/
+├─ daily_report/                 # 日报业务域
+│  ├─ data_sources/              # 通达信、公开市场、新闻和发行数据采集
+│  ├─ storage/                   # 日报统一 SQLite 的表结构与 Repository
+│  ├─ web/                       # FastAPI、HTML 模板和静态资源
+│  ├─ cache_cli.py               # 同步近年历史行情
+│  ├─ cli.py                     # 生成 Markdown 日报
+│  ├─ config.py                  # 读取并校验标的配置
+│  ├─ models.py                  # 报告快照和持久化记录模型
+│  ├─ news_cli.py                # 采集并保存财经新闻
+│  ├─ rendering.py               # Markdown 渲染
+│  └─ service.py                 # 日报采集、指标计算和渲染编排
+├─ tdx_data/                     # 独立的通达信完整归档业务域
+│  ├─ additional_data.py         # 核心归档之外的只读接口、说明和样例
+│  ├─ archive_service.py         # 股票遍历与增量归档流程
+│  ├─ cli.py                     # 完整归档命令入口
+│  ├─ client.py                  # TQ 连接和只读接口适配
+│  ├─ field_mapping.py           # 通达信字段中文映射
+│  └─ repository.py              # TDX 专用 SQLite 表和写入操作
+├─ config/market_universe.json   # 日报关注标的
+├─ data/                         # 本地 SQLite 数据（Git 忽略）
+├─ docs/                         # 当前架构的生命周期文档
+├─ reports/                      # 命令行生成的 Markdown（Git 忽略）
+├─ tests/                        # 按两个业务域划分的离线测试
+├─ AGENTS.md                     # 仓库协作约定
+└─ pyproject.toml                # 依赖、包发现和命令入口
 ```
 
-可按同样方式增删 ETF、A 股指数、美股和 Kraken 的 USD 交易对。A 股代码使用通达信格式（如 `600519.SH`、`000001.SZ`）；美股使用交易代码（如 `NVDA`）；加密资产使用 Kraken 交易对（如 `XBTUSD`）。
+## 数据库
 
-`commodity_futures` 默认包含黄金、白银、沪铜、原油。它们是具体期货合约代码，临近到期时需更新为新的主力合约；单一合约通常没有完整三年历史，因此报告会显示“历史样本不足”，而不会错误地给出三年分位。
+`data/daily_report.sqlite3` 是日报唯一数据库：
 
-## 运行
+- `instruments`：配置标的和顺序；
+- `market_bars`：多市场历史日线，按“分类、代码、日期”去重；
+- `news_items`：新浪财经、东方财富新闻，按“来源、时间、标题”去重；
+- `daily_reports`：每天第一份成功生成的 Markdown 和结构化快照；
+- `sync_runs`：数据同步审计记录。
 
-先启动并登录通达信客户端，并确保进程环境能读取 `ALPHAVANTAGE_API_KEY`。随后在项目目录运行：
+`data/tdx_archive.sqlite3` 只属于 `tdx_data`，保存股票日线、完整原始接口记录、平铺字段、板块关系、字段字典和归档运行记录。两个数据库分离，避免日报读写与大体量 TDX 归档互相影响。
+
+## 安装与命令
 
 ```powershell
-python .\build_history_cache.py
-python .\run_market_report.py
+python -m pip install -e ".[dev]"
+
+market-cache --years 5
+market-report
+finance-news
+market-web --host 127.0.0.1 --port 8000
+
+tdx-full-archive --limit 10
+tdx-extra-data --sample-only
 ```
 
-默认输出为 `reports/market_report_YYYY-MM-DD.md`。可指定配置或输出位置：
+对应模块入口也可直接运行：`python -m daily_report`、`python -m daily_report.cache_cli`、`python -m daily_report.news_cli`、`python -m daily_report.web`、`python -m tdx_data` 和 `python -m tdx_data.additional_data`。
+
+本地通达信插件默认读取 `D:\SoftWare\TDX\PYPlugins\user`；也可设置 `TDX_USER_DIR`，完整归档命令还支持 `--tdx-user-dir`。
+
+## 日报处理逻辑
+
+1. `market-cache` 从 TDX、Yahoo Chart 和 Coinbase 同步历史行情到 SQLite。
+2. `market-report` 获取最新行情和发行事件，将最新行情幂等写入同一数据库，并直接用 SQL 计算三年价格分位。
+3. `finance-news` 采集新闻并写入 `news_items`，为后续日报新闻章节准备数据；当前渲染暂未展示新闻。
+4. `market-web` 在当天第一次请求时生成并永久保存日报；同日后续请求和服务重启均读取已有记录。
+
+## 验证
 
 ```powershell
-python .\run_market_report.py --config .\config\market_universe.json --output .\reports\custom_report.md
+python -m pytest -q -p no:cacheprovider --basetemp .test-tmp
+git diff --check
 ```
 
-首次运行请先执行 `build_history_cache.py`，它会将配置中 A 股、ETF、指数、美股和加密资产的近五年日线保存到 `data/history/`。日报随后使用近三年的本地收盘价计算“价格分位”：≤20% 为价格偏低，≥80% 为价格偏高，否则为价格中性。该指标是价格历史位置，不能代替 PE、PB 等估值分析。
-
-建库脚本可重复执行，默认会跳过已存在的标的缓存，便于中断后继续；如需强制全量重新下载，使用 `python .\build_history_cache.py --overwrite`。
-
-历史缓存来源为：A 股/ETF/指数使用通达信，配置美股使用 Yahoo Finance 日线，配置加密资产使用 Coinbase UTC 日 K。当日美股和加密资产报价仍分别来自 Alpha Vantage 与 Kraken，因此不同交易所/数据源在同一时刻可能存在轻微价格差异。
-
-若美股 API 密钥未配置、额度不足或个别外部标的失败，A 股报告仍会生成，失败原因写在“外部接口状态”部分。
+数据库、WAL/SHM、报告、缓存、凭据和 Python 字节码均不得提交。

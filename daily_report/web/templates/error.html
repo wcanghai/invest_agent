@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>报告生成失败 · 市场脉搏</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='/site.css') }}">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/"><span class="brand-mark">MR</span><span><strong>市场脉搏</strong><small>每日多市场行情归档</small></span></a>
+  </header>
+  <main class="error-shell">
+    <p class="eyebrow">DATA SOURCE UNAVAILABLE</p>
+    <h1>今天的报告暂时无法生成</h1>
+    <p>{{ message }}</p>
+    <p>请确认通达信客户端已启动并登录，然后刷新页面。失败结果不会写入数据库。</p>
+    <a class="api-link" href="/">重新尝试</a>
+  </main>
+</body>
+</html>

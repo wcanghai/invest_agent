@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "multi-market-investment-tools"
+version = "1.1.0"
+description = "可配置的多市场行情日报、财经新闻和通达信股票归档工具"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+dependencies = [
+    "akshare>=1.17",
+    "bleach>=6.2",
+    "fastapi>=0.116",
+    "jinja2>=3.1",
+    "markdown>=3.8",
+    "pandas>=2.2",
+    "uvicorn>=0.35",
+]
+
+[project.optional-dependencies]
+dev = [
+    "httpx>=0.28",
+    "pytest>=8",
+]
+
+[project.scripts]
+market-report = "daily_report.cli:main"
+market-cache = "daily_report.cache_cli:main"
+finance-news = "daily_report.news_cli:main"
+tdx-full-archive = "tdx_data.cli:main"
+tdx-extra-data = "tdx_data.additional_data:main"
+market-web = "daily_report.web.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["daily_report*", "tdx_data*"]
+
+[tool.setuptools.package-data]
+"daily_report.web" = ["templates/*.html", "static/*.css", "static/*.js"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --basetemp=.test-tmp"
