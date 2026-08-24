@@ -21,8 +21,12 @@ invest_202608/
 │  ├─ additional_data.py         # 核心归档之外的只读接口、说明和样例
 │  ├─ archive_service.py         # 股票遍历与增量归档流程
 │  ├─ cli.py                     # 完整归档命令入口
+│  ├─ incremental_cli.py         # 从现有标的执行每日增量
 │  ├─ client.py                  # TQ 连接和只读接口适配
 │  ├─ field_mapping.py           # 通达信字段中文映射
+│  ├─ history_service.py         # 历史财报、股本和指标时点一致读取
+│  ├─ quant_wide_service.py      # 时点一致的量化日频宽表构建
+│  ├─ quant_wide_cli.py          # 宽表全量/区间重建命令
 │  └─ repository.py              # TDX 专用 SQLite 表和写入操作
 ├─ config/market_universe.json   # 日报关注标的
 ├─ data/                         # 本地 SQLite 数据（Git 忽略）
@@ -56,10 +60,13 @@ finance-news
 market-web --host 127.0.0.1 --port 8000
 
 tdx-full-archive --limit 10
+tdx-full-archive --target-universe --etf-limit 120 --limit 0
+tdx-daily-update
+tdx-build-quant-wide
 tdx-extra-data --sample-only
 ```
 
-对应模块入口也可直接运行：`python -m daily_report`、`python -m daily_report.cache_cli`、`python -m daily_report.news_cli`、`python -m daily_report.web`、`python -m tdx_data` 和 `python -m tdx_data.additional_data`。
+对应模块入口也可直接运行：`python -m daily_report`、`python -m daily_report.cache_cli`、`python -m daily_report.news_cli`、`python -m daily_report.web`、`python -m tdx_data`、`python -m tdx_data.incremental_cli`、`python -m tdx_data.quant_wide_cli` 和 `python -m tdx_data.additional_data`。
 
 本地通达信插件默认读取 `D:\SoftWare\TDX\PYPlugins\user`；也可设置 `TDX_USER_DIR`，完整归档命令还支持 `--tdx-user-dir`。
 

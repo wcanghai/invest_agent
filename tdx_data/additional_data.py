@@ -1,4 +1,4 @@
-"""演示核心归档尚未采集的通达信只读数据接口。
+"""独立演示和检查通达信扩展只读数据接口。
 
 本文件不写数据库，只负责：
 
@@ -36,24 +36,10 @@ from typing import Any, Callable, Sequence
 
 import pandas as pd
 
-from tdx_data.client import TdxClient
+from tdx_data.client import FINANCIAL_FIELDS, GO_FIELDS, GP_FIELDS, TdxClient
 
 
 DEFAULT_USER_DIR = Path(r"D:\SoftWare\TDX\PYPlugins\user")
-FINANCIAL_FIELDS = (
-    "Fn193",
-    "Fn194",
-    "Fn195",
-    "Fn196",
-    "Fn197",
-    "Fn198",
-    "Fn199",
-    "Fn200",
-)
-GP_FIELDS = ("GP1", "GP2", "GP3", "GP4", "GP5")
-GO_FIELDS = ("GO1", "GO2", "GO3", "GO4", "GO47")
-
-
 @dataclass(frozen=True)
 class DatasetDescription:
     """一个额外数据集的接口说明和结构示意样例。"""
@@ -122,7 +108,7 @@ DATASET_DESCRIPTIONS: dict[str, DatasetDescription] = {
 
 
 class AdditionalTdxDataSource:
-    """调用核心归档当前未覆盖的只读 TQ 接口。"""
+    """调用 TDX 归档使用的扩展只读 TQ 接口。"""
 
     def __init__(self, tq: Any):
         self.tq = tq
@@ -267,7 +253,7 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
     today = date.today()
     default_start = _subtract_year(today)
     parser = argparse.ArgumentParser(
-        description="查看或调用核心归档尚未覆盖的通达信只读接口"
+        description="查看或单独调用 TDX 归档使用的扩展只读接口"
     )
     parser.add_argument("--code", default="600000.SH", help="股票代码")
     parser.add_argument("--start-date", type=date.fromisoformat, default=default_start)

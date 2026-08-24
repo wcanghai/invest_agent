@@ -47,9 +47,25 @@ MORE_INFO = {
     "RDInputFee": "研发费用(万元)", "CashZJ": "货币资金(万元)", "PreReceiveZJ": "合同负债(万元)",
     "OtherQYJzc": "其它权益工具(万元)", "StaffNum": "员工人数",
 }
+FINANCIAL_HISTORY = {
+    "FN193": "插件标称：稀释每股收益（待校验）",
+    "FN194": "插件标称：加权每股收益（待校验）",
+    "FN195": "插件标称：每股未分配利润（待校验）",
+    "FN196": "插件标称：每股净资产（待校验）",
+    "FN197": "插件标称：每股资本公积金（待校验）",
+    "FN198": "插件标称：摊薄每股收益（待校验）",
+    "FN199": "插件标称：营业收入（待校验）",
+    "FN200": "插件标称：净利润（待校验）",
+}
 
-FIELD_MAP = BASE_INFO | KLINE | STOCK_INFO | MORE_INFO
-FIELD_GROUP = {**{k: "base_info" for k in BASE_INFO}, **{k: "kline" for k in KLINE}, **{k: "stock_info" for k in STOCK_INFO}, **{k: "more_info" for k in MORE_INFO}}
+FIELD_MAP = BASE_INFO | KLINE | STOCK_INFO | MORE_INFO | FINANCIAL_HISTORY
+FIELD_GROUP = {
+    **{k: "base_info" for k in BASE_INFO},
+    **{k: "kline" for k in KLINE},
+    **{k: "stock_info" for k in STOCK_INFO},
+    **{k: "more_info" for k in MORE_INFO},
+    **{k: "financial_history" for k in FINANCIAL_HISTORY},
+}
 
 
 def display_name(field_name: str) -> str:

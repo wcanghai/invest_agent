@@ -15,11 +15,13 @@ import pandas as pd
 DEFAULT_TDX_USER_DIR = Path(r"D:\SoftWare\TDX\PYPlugins\user")
 
 
-# get_market_data 字段说明：Date/Time 缺失时由行情 DataFrame 索引补齐日期。
+# TQ 日线仅接受行情字段；交易日期由返回 DataFrame 索引补齐。
 DAILY_FIELDS = (
-    "Date", "Time", "Open", "High", "Low", "Close", "Volume", "Amount",
-    "ForwardFactor", "VolInStock",
+    "Open", "High", "Low", "Close", "Volume", "Amount",
 )
+FINANCIAL_FIELDS = tuple(f"Fn{number}" for number in range(193, 201))
+GP_FIELDS = ("GP1", "GP2", "GP3", "GP4", "GP5")
+GO_FIELDS = ("GO1", "GO2", "GO3", "GO4", "GO47")
 API_FIELD_COMMENTS = {
     "Code": "证券代码", "Name": "证券名称", "Date": "交易日期", "Time": "交易时间",
     "Open": "开盘价", "High": "最高价", "Low": "最低价", "Close": "收盘价",
@@ -76,6 +78,51 @@ class TdxClient:
         """获取行业、地域、概念和指数板块关系。"""
         value = self._api().get_relation(stock_code=code)
         return value if isinstance(value, list) else []
+
+    def financial_history(self, code: str, start: date, end: date) -> Any:
+        """按公告日获取历史财务记录，同时保留返回中的报告期。"""
+        return self._api().get_financial_data(
+            stock_list=[code],
+            field_list=list(FINANCIAL_FIELDS),
+            start_time=start.strftime("%Y%m%d"),
+            end_time=end.strftime("%Y%m%d"),
+            report_type="announce_time",
+        ) or {}
+
+    def share_capital_history(self, code: str, start: date, end: date) -> Any:
+        """按日期区间获取流通股本和总股本历史。"""
+        return self._api().get_gb_info_by_date(
+            stock_code=code,
+            start_date=start.strftime("%Y%m%d"),
+            end_date=end.strftime("%Y%m%d"),
+        ) or {}
+
+    def corporate_actions(self, code: str, start: date, end: date) -> Any:
+        """获取日期区间内的分红送配和除权记录。"""
+        return self._api().get_divid_factors(
+            stock_code=code,
+            start_time=start.strftime("%Y%m%d"),
+            end_time=end.strftime("%Y%m%d"),
+        )
+
+    def market_snapshot(self, code: str) -> Any:
+        """获取当前或最近市场快照的全部可用字段。"""
+        return self._api().get_market_snapshot(stock_code=code, field_list=[]) or {}
+
+    def gp_trading(self, code: str, start: date, end: date) -> Any:
+        """获取 GP1-GP5 交易扩展序列。"""
+        return self._api().get_gpjy_value(
+            stock_list=[code],
+            field_list=list(GP_FIELDS),
+            start_time=start.strftime("%Y%m%d"),
+            end_time=end.strftime("%Y%m%d"),
+        ) or {}
+
+    def gp_single(self, code: str) -> Any:
+        """获取 GO1-GO4、GO47 单点动态信息。"""
+        return self._api().get_gp_one_data(
+            stock_list=[code], field_list=list(GO_FIELDS)
+        ) or {}
 
     def _api(self) -> Any:
         if self.tq is None:
