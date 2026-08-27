@@ -34,11 +34,13 @@ tdx-daily-update = "tdx_data.incremental_cli:main"
 tdx-extra-data = "tdx_data.additional_data:main"
 tdx-build-quant-wide = "tdx_data.quant_wide_cli:main"
 market-web = "daily_report.web.cli:main"
+quant-value = "quant_value.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["daily_report*", "tdx_data*"]
+include = ["daily_report*", "tdx_data*", "quant_value*"]
 
 [tool.setuptools.package-data]
+"quant_value" = ["representative_universe.json"]
 "daily_report.web" = ["templates/*.html", "static/*.css", "static/*.js"]
 
 [tool.pytest.ini_options]

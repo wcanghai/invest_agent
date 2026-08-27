@@ -9,3 +9,6 @@
 - `release/`：发布、回滚和剩余风险。
 
 本次最终架构统一使用 `two-domain-refactor.md`；ADR 记录 SQLite 与双业务域边界的长期决策。
+
+整体数据库结构、表分类、实体关系和时点匹配规则统一记录在
+[`design/database-data-model.md`](design/database-data-model.md)。
