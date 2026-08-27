@@ -1,0 +1,7 @@
+{
+  "instruments": [
+    {"code": "600519.SH", "name": "贵州茅台", "asset_type": "stock", "category": "消费/稳定高盈利"},
+    {"code": "000333.SZ", "name": "美的集团", "asset_type": "stock", "category": "制造/现金流"},
+    {"code": "300750.SZ", "name": "宁德时代", "asset_type": "stock", "category": "成长/新能源"}
+  ]
+}

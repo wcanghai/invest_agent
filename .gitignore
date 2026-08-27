@@ -15,7 +15,9 @@ data/history/
 data/news/
 data/*.sqlite3
 data/*.sqlite3-*
+data/quant_value_universe.json
 reports/
+archives/
 *.log
 
 # Local secrets and editor files
